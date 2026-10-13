@@ -46,7 +46,8 @@ impl<'v, 'f, T> SVec<'v, 'f, T> {
         }
     }
 
-    /// An empty vector with room for exactly `cap` elements.
+    /// An empty vector with room for exactly `cap` elements. A zero-size `T`
+    /// needs no room: its capacity is always `usize::MAX`.
     ///
     /// # Panics
     /// If the stack is exhausted, the capacity overflows, or a non-zero-size

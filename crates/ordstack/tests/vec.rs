@@ -452,3 +452,73 @@ fn retain_panicking_drop_keeps_every_element_once() {
     all.sort();
     assert_eq!(all, [0, 1, 2, 3, 4, 5, 6, 7]);
 }
+
+/// The three documentation discrepancies from the second review: what
+/// `CapacityOverflow` and `Exhausted` mean, the capacity of a zero-size
+/// vector, and when a frame's lower object reclaims.
+#[test]
+fn documented_error_kinds_capacity_and_reclamation() {
+    // A size above `isize::MAX` that does not overflow `usize` is Exhausted;
+    // an overflowing size computation is CapacityOverflow.
+    let mut st = Stack::with_reserve(0);
+    let mut f = st.frame();
+    {
+        let mut v = SVec::<u8>::new_in(&mut f);
+        assert_eq!(
+            v.try_reserve(isize::MAX as usize + 1).unwrap_err().kind(),
+            AllocErrorKind::Exhausted
+        );
+        assert_eq!(
+            v.try_reserve(usize::MAX).unwrap_err().kind(),
+            AllocErrorKind::Exhausted
+        );
+    }
+    {
+        let mut v = SVec::<u64>::new_in(&mut f);
+        assert_eq!(
+            v.try_reserve(usize::MAX / 8 + 1).unwrap_err().kind(),
+            AllocErrorKind::CapacityOverflow
+        );
+    }
+    assert_eq!(
+        Stack::try_with_reserve(isize::MAX as usize)
+            .unwrap_err()
+            .kind(),
+        AllocErrorKind::CapacityOverflow
+    );
+
+    // `try_alloc` drops its argument on failure (review D1).
+    let drops = std::cell::Cell::new(0);
+    struct Count<'a>(&'a std::cell::Cell<usize>);
+    impl Drop for Count<'_> {
+        fn drop(&mut self) {
+            self.0.set(self.0.get() + 1);
+        }
+    }
+    assert!(f.try_alloc(Count(&drops)).is_err());
+    assert_eq!(drops.get(), 1);
+
+    // A zero-size `T` reports `usize::MAX`, not the requested capacity.
+    let z = SVec::<()>::with_capacity_in(3, &mut f);
+    assert_eq!(z.capacity(), usize::MAX);
+    drop(z);
+
+    // Reclamation happens when the lower object needs the top, not on any
+    // use: a read-only query leaves the sub-frame's space in place, and so
+    // does dropping the frame.
+    let mut st = Stack::with_reserve(1 << 16);
+    {
+        let mut f = st.frame();
+        let _kept = f.alloc(1u64);
+        drop(f.sub().alloc([0u8; 100]));
+        assert_eq!(f.end_offset(), 8);
+    }
+    assert_eq!(st.extent(), 108);
+    {
+        let mut f = st.frame();
+        let _kept = f.alloc(1u64);
+        drop(f.sub().alloc([0u8; 100]));
+        let _next = f.alloc(2u64); // needs the top: reclaims
+    }
+    assert_eq!(st.extent(), 16);
+}

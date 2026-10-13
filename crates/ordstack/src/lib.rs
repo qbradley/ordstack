@@ -109,7 +109,9 @@
 //! return an [`AllocError`] instead.
 //!
 //! A failed allocation changes no object: lengths, capacities, pointers and
-//! frame ends are as before, and no value is lost. It may still lower
+//! frame ends are as before, and no stored value is lost.
+//! [`SVec::try_push`] hands the rejected value back; [`Frame::try_alloc`]
+//! drops the value it was given. A failed allocation may still lower
 //! [`Stack::extent`], because the lazy reclamation described above runs
 //! before the step that can fail.
 //!

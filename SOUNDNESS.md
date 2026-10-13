@@ -65,9 +65,9 @@ The only ways to obtain a pointer above an object's end are:
 | `SBox::leak`, `SSlice::leak`, `SStr::leak` | `&'a mut` | nothing new |
 | `Deref` / `DerefMut` on any handle | a reference bounded by the borrow of the handle | the handle, whose type carries the brand |
 
-Every handle type mentions its brand in a covariant position, so a brand can
-only be shortened, and a shortened brand is still outlived by the borrow that
-created it. `Frame` is neither `Clone` nor `Copy`. No function returns a
+Every handle type is covariant or invariant in its brand (H4 lists which),
+so a brand can be shortened at most, never lengthened, and a shortened brand
+is still outlived by the borrow that created it. `Frame` is neither `Clone` nor `Copy`. No function returns a
 pointer without a brand. `Frame::end_offset`, `Stack::extent`,
 `Stack::high_water` and `Stack::capacity` return plain integers, and no safe
 function turns an integer back into a pointer.
@@ -230,12 +230,54 @@ User code runs inside the library in: element destructors, `Clone::clone`
 and the comparison, hashing and formatting impls that delegate to the
 elements.
 
-Re-entrancy: in every one of these the container or frame being operated on
-is borrowed, or owned, by the running method (the comparison, hashing and
-formatting impls take `&self`; destructors own the value), and a
-container's frame is held by the container. So the user code cannot name
-the object in its intermediate state, nor allocate from its frame. What it can observe is only
-what it is passed.
+Re-entrancy. Three different situations, which must not be conflated:
+
+(a) Growable containers. `SVec` and `SString` hold `&mut Frame` for as long
+as they exist, and the methods that run user code (`retain`, `extend`,
+`truncate`, `clear`, `Drop`) borrow the container itself. User code run from
+them cannot name the container in its intermediate state, and cannot reach
+its frame, or any frame beneath it, because those stay mutably borrowed.
+`Frame::alloc_slice_clone` and `Frame::alloc_with` are methods of the frame:
+they run `Clone::clone` and the closure while holding `&mut self`, so the
+callee cannot reach that frame either (a `RefCell<Frame>` does not help,
+since the caller already holds its `borrow_mut`). `alloc_with` runs the
+closure before anything is reserved; `alloc_slice_clone` has already raised
+`frame.end` past the whole block when the first `clone` runs, so even a
+panic leaves the frame consistent.
+
+(b) Frozen handles (`SBox`, `SSlice`, `SStr`, `SFixedVec`, `IntoIter`). These
+do not borrow their frame, so an element destructor *can* use the frame that
+allocated the very block it sits in (for example through a
+`RefCell<Frame>`), and may call `alloc`, `sub`, `reset_above`, `trim_above`
+or `end_offset` on it. This is sound, and the earlier claim that it was
+impossible was wrong. The reason is that every frozen block lies below
+`frame.end` (E), and every operation reachable through a `&mut Frame` acts
+only at or above `frame.end`:
+
+- `try_alloc_array` calls `reset_to(self.end)` and then `try_bump`, which
+  starts at `top >= end` after the reset (it can only round upwards), and
+  sets `end` to the end of the new block, so `end` never decreases;
+- `sub` and `reset_above` call `reset_to(self.end)`; a sub-frame starts at
+  `end`, so its blocks lie at or above it, and its own reset only goes down
+  to its own `end`;
+- `trim_above` calls `reset_to(end)` and `release_above(end)`; the
+  `release_pages` helper rounds the start *up* to a page boundary, so only
+  pages that lie entirely at or above `end` are discarded;
+- `end_offset` only reads.
+
+This follows from `frame.rs`, `stack.rs` and `region.rs`. A destructor
+that is itself running inside a sub-frame's handle can reach only that
+sub-frame (its parent is mutably borrowed by it, and a `RefCell` guard on
+the parent stays alive as long as the sub-frame does). The frozen block being
+destroyed is not read after its destructor starts, and the owner has already
+lowered its count (see the table), so a re-entrant allocation cannot observe
+or free it. `tests/reentrant.rs` runs these cases, including under Miri
+with both borrow models.
+
+(c) The comparison, hashing and formatting impls take `&self` and delegate
+to initialised shared references. They can run arbitrary code, including
+interior mutation of the elements, but expose no intermediate allocation
+state: nothing in them is mid-update.
 
 | Site | State when user code runs | On panic |
 |---|---|---|
@@ -299,9 +341,11 @@ already have been lowered (see "What a failed allocation leaves behind"); no
 object changes.
 
 Offsets are aligned, not addresses, so alignment of the address depends on
-the base. On Unix the base is an `mmap` result, which is page aligned, and
-the argument assumes the system page size is at least 4096; `region.rs`
-checks `base % 4096 == 0` with a `debug_assert!` only. Under Miri the base
+the base. `Region::reserve` asserts `base % 4096 == 0` with a real
+`assert_eq!` in every build, so a platform whose mapping is less aligned
+panics when the stack is created instead of handing out misaligned blocks.
+On Unix the base is an `mmap` result, and `os::page_size` is at least 4096
+whatever the system reports. Under Miri the base
 is a heap block requested with alignment 4096. A zero-length region uses the
 address 4096 as a base that is never dereferenced, because every non-zero
 request on it fails.
@@ -520,7 +564,7 @@ follow the table. There is no `unsafe impl` and no `unsafe trait`.
 | 29 | `fixed.rs` | `Deref::deref` | `slice::from_raw_parts` | first `len` values initialised; block valid for the brand |
 | 30 | `fixed.rs` | `DerefMut::deref_mut` | `slice::from_raw_parts_mut` | as above; `&mut self` is unique |
 | 31 | `fixed.rs` | `Drop::drop` | `drop_back_to_front(ptr, len)` | owns `len` initialised values; `self.len` was set to 0 first |
-| 32 | `region.rs` | `Region::release_pages` | `base.add(start)`, `os::discard` | `start < len` was checked and `start` is a multiple of the page size, so the range is inside the mapping and page aligned; that nothing relies on the contents is the callers' contract (H10, `release_above`) |
+| 32 | `region.rs` | `Region::release_pages` | `base.add(start)`, `os::discard` | `start < len` was checked and `start` is a multiple of the page size, and the base is aligned to 4096 by the `assert_eq!` in `Region::reserve`, so the range is inside the mapping and page aligned; that nothing relies on the contents is the callers' contract (H10, `release_above`) |
 | 33 | `region.rs` | `Drop::drop` for `Region` | `os::unmap(base, len)` | `len > 0`, and `base`/`len` are what `os::map` returned; `Region` is not `Clone` |
 | 34 | `region.rs` | `os::page_size` (Unix) | `libc::sysconf` | no preconditions |
 | 35 | `region.rs` | `os::map` (Unix) | `libc::mmap`, anonymous, private, kernel-chosen address | touches no existing memory; failure is checked |
@@ -617,7 +661,7 @@ is meant for a large machine.
   hand-written tests.
 - The compile-fail tests show that particular programs are rejected. They
   are examples of I, not a proof of it.
-- Address alignment assumes a system page size of at least 4096 (H6).
+- Address alignment is enforced by an `assert_eq!` in `Region::reserve`: a platform whose mappings are not 4096-aligned cannot create a stack (H6).
 - `Stack::offset_of` and `Stack::release_above` check their contracts only
   in debug builds (H10).
 - Only Linux has been run through `scripts/check.sh`. The macOS code path

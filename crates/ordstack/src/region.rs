@@ -28,7 +28,13 @@ impl Region {
             return Ok(Region { base, len: 0 });
         }
         let base = os::map(len).ok_or(AllocError::new(AllocErrorKind::MapFailed))?;
-        debug_assert_eq!(base.as_ptr() as usize % MAX_ALIGN, 0);
+        // Every block alignment relies on this (SOUNDNESS.md, H6); it is
+        // checked in every build rather than assumed of the platform.
+        assert_eq!(
+            base.as_ptr() as usize % MAX_ALIGN,
+            0,
+            "ordstack: the operating system returned a mapping not aligned to {MAX_ALIGN}"
+        );
         Ok(Region { base, len })
     }
 
@@ -51,7 +57,7 @@ impl Region {
             return;
         }
         // SAFETY: `start < len`, so the range lies inside our mapping, and
-        // `start` is page aligned because the base is.
+        // `start` is page aligned because the base is (asserted in `reserve`).
         unsafe { os::discard(self.base.add(start), self.len - start) };
     }
 }

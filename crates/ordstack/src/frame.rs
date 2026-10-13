@@ -16,7 +16,10 @@ use crate::stack::Stack;
 /// Blocks allocated through the frame are branded `'f`.
 ///
 /// A frame has no destructor. Its memory is reclaimed the next time the
-/// object beneath it is used.
+/// object beneath it needs the top of the stack: when it allocates, grows,
+/// shrinks, freezes or hands out a frame. Operations that stay inside
+/// existing capacity, and read-only queries, reclaim nothing (see
+/// [Reclamation is lazy](crate#reclamation-is-lazy)).
 pub struct Frame<'f> {
     pub(crate) st: &'f Stack,
     /// Everything this frame has allocated lies below `end`.

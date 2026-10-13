@@ -26,7 +26,7 @@ impl<'v, 'f> SString<'v, 'f> {
     /// An empty string with room for exactly `cap` bytes.
     ///
     /// # Panics
-    /// If the stack is exhausted.
+    /// If the stack is exhausted or the capacity overflows.
     pub fn with_capacity_in(cap: usize, frame: &'v mut Frame<'f>) -> SString<'v, 'f> {
         SString {
             vec: SVec::with_capacity_in(cap, frame),
@@ -36,7 +36,7 @@ impl<'v, 'f> SString<'v, 'f> {
     /// A copy of `s` on top of `frame`.
     ///
     /// # Panics
-    /// If the stack is exhausted.
+    /// If the stack is exhausted or the capacity overflows.
     pub fn from_str_in(s: &str, frame: &'v mut Frame<'f>) -> SString<'v, 'f> {
         let mut out = SString::with_capacity_in(s.len(), frame);
         out.push_str(s);

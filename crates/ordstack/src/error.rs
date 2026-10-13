@@ -8,7 +8,14 @@ use core::fmt;
 pub enum AllocErrorKind {
     /// The stack's reservation is used up.
     Exhausted,
-    /// The requested size overflows `usize` or exceeds `isize::MAX`.
+    /// A size computation overflowed `usize` (element count times element
+    /// size, an offset plus a size, or a length plus an additional count), or
+    /// a reservation requested of
+    /// [`Stack::with_reserve`](crate::Stack::with_reserve) cannot be
+    /// represented (more than `isize::MAX` minus a page, after rounding up
+    /// to whole pages). A size that fits in `usize` but is larger than the
+    /// stack's reservation, including one above `isize::MAX`, reports
+    /// [`Exhausted`](Self::Exhausted) instead.
     CapacityOverflow,
     /// The requested alignment is above 4096.
     AlignTooLarge,
