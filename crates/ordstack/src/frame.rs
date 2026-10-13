@@ -26,6 +26,22 @@ pub struct Frame<'f> {
 impl<'f> Frame<'f> {
     /// A frame above this one. This frame is frozen while the sub-frame, or
     /// anything allocated through it, is alive.
+    ///
+    /// # Examples
+    /// ```
+    /// use ordstack::Stack;
+    ///
+    /// let mut st = Stack::with_reserve(1 << 16);
+    /// let mut f = st.frame();
+    /// let kept = f.alloc(1u32);
+    /// {
+    ///     let mut sub = f.sub();
+    ///     let tmp = sub.alloc_slice_copy(&[1u8, 2, 3]);
+    ///     assert_eq!(tmp.len(), 3);
+    /// }
+    /// let next = f.alloc(2u32); // reuses the space the sub-frame used
+    /// assert_eq!(*kept + *next, 3);
+    /// ```
     pub fn sub(&mut self) -> Frame<'_> {
         self.st.reset_to(self.end);
         Frame {
@@ -34,24 +50,44 @@ impl<'f> Frame<'f> {
         }
     }
 
-    /// Reclaims everything above this frame now instead of at its next use.
+    /// Reclaims everything above this frame now, instead of when the frame
+    /// next allocates or hands out a sub-frame.
+    ///
+    /// # Examples
+    /// ```
+    /// use ordstack::Stack;
+    ///
+    /// let mut st = Stack::with_reserve(1 << 16);
+    /// {
+    ///     let mut f = st.frame();
+    ///     let _kept = f.alloc(1u64);
+    ///     drop(f.sub().alloc([0u8; 100])); // the 100 bytes stay in use for now
+    ///     f.reset_above();
+    ///     assert_eq!(f.end_offset(), 8);
+    /// }
+    /// assert_eq!(st.extent(), 8);
+    /// ```
     pub fn reset_above(&mut self) {
         self.st.reset_to(self.end);
     }
 
-    /// Reclaims everything above this frame and returns those pages to the OS.
+    /// Reclaims everything above this frame and returns the whole pages
+    /// above it to the OS.
     pub fn trim_above(&mut self) {
         self.st.reset_to(self.end);
         self.st.release_above(self.end);
     }
 
-    /// Offset of this frame's end from the base of its stack.
+    /// Offset of this frame's end from the base of its stack. Everything the
+    /// frame has allocated lies below it.
     pub fn end_offset(&self) -> usize {
         self.end
     }
 
     /// An uninitialised block for `n` values of `T`, owned by this frame.
-    /// Returns a dangling pointer when the block has zero size.
+    /// Returns a dangling, aligned pointer when the block has zero size; such
+    /// a request never reaches the stack. On failure `end` is unchanged; `top`
+    /// may have been lowered to `end` by the reset.
     pub(crate) fn try_alloc_array<T>(&mut self, n: usize) -> Result<NonNull<T>, AllocError> {
         let bytes = size_of::<T>()
             .checked_mul(n)
@@ -69,7 +105,8 @@ impl<'f> Frame<'f> {
     /// Copies `src` into a frozen block.
     ///
     /// # Panics
-    /// If the stack is exhausted.
+    /// If the stack is exhausted, the size overflows, or a block of non-zero
+    /// size needs alignment above 4096.
     pub fn alloc_slice_copy<T: Copy>(&mut self, src: &[T]) -> SSlice<'f, T> {
         let p = self
             .try_alloc_array::<T>(src.len())
@@ -86,7 +123,8 @@ impl<'f> Frame<'f> {
     /// so far are dropped; the block's space stays with this frame.
     ///
     /// # Panics
-    /// If the stack is exhausted.
+    /// If the stack is exhausted, the size overflows, or a block of non-zero
+    /// size needs alignment above 4096.
     pub fn alloc_slice_clone<T: Clone>(&mut self, src: &[T]) -> SSlice<'f, T> {
         struct Done<T> {
             ptr: *mut T,
@@ -130,11 +168,23 @@ impl<'f> Frame<'f> {
     /// # Panics
     /// If the stack is exhausted, or if `T` is not zero-size and its alignment
     /// is above 4096.
+    ///
+    /// # Examples
+    /// ```
+    /// use ordstack::Stack;
+    ///
+    /// let mut st = Stack::with_reserve(1 << 16);
+    /// let mut f = st.frame();
+    /// let mut b = f.alloc([1u32, 2]);
+    /// b[0] = 5;
+    /// assert_eq!(*b, [5, 2]);
+    /// ```
     pub fn alloc<T>(&mut self, value: T) -> SBox<'f, T> {
         self.try_alloc(value).unwrap_or_else(|e| fail(e))
     }
 
     /// Moves `value` into a frozen block, or drops it and reports why not.
+    /// On failure the frame is unchanged.
     pub fn try_alloc<T>(&mut self, value: T) -> Result<SBox<'f, T>, AllocError> {
         let p = self.try_alloc_array::<T>(1)?;
         // SAFETY: `p` is a fresh, aligned block for one `T` (or dangling and
@@ -148,6 +198,9 @@ impl<'f> Frame<'f> {
 
     /// Like [`alloc`](Self::alloc), with the value built by `f`. `f` runs
     /// before any space is reserved.
+    ///
+    /// # Panics
+    /// As [`alloc`](Self::alloc).
     pub fn alloc_with<T>(&mut self, f: impl FnOnce() -> T) -> SBox<'f, T> {
         let value = f();
         self.alloc(value)

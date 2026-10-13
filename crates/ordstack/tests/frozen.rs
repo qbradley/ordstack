@@ -215,3 +215,38 @@ fn slice_and_str_leak() {
     s.make_ascii_uppercase();
     assert_eq!((&*xs, &*s), (&b"zbc"[..], "XYZ"));
 }
+
+#[test]
+fn zero_size_value_with_alignment_above_the_limit_succeeds() {
+    // Zero-size requests never reach the stack, so the 4096 limit does not
+    // apply to them; the handle's pointer is dangling but aligned.
+    #[repr(align(8192))]
+    struct BigZst;
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let _odd = f.alloc(1u8);
+    let z = f.try_alloc(BigZst).unwrap();
+    assert_eq!(&*z as *const BigZst as usize % 8192, 0);
+    let none = f.alloc_slice_copy::<[u64; 0]>(&[[], []]);
+    assert_eq!(none.len(), 2);
+    assert_eq!(f.end_offset(), 1);
+}
+
+#[test]
+fn failed_allocation_changes_no_object_but_may_reclaim_above() {
+    // The lazy reset to the frame's end runs before the step that fails, so
+    // the failure leaves `end` alone while `top` drops from 108 to 8.
+    #[repr(align(8192))]
+    struct Huge(#[allow(dead_code)] u8);
+    let mut st = Stack::with_reserve(1 << 16);
+    {
+        let mut f = st.frame();
+        let kept = f.alloc(1u64);
+        drop(f.sub().alloc([0u8; 100]));
+        let e = f.try_alloc(Huge(0)).err().unwrap();
+        assert_eq!(e.kind(), AllocErrorKind::AlignTooLarge);
+        assert_eq!(f.end_offset(), 8);
+        assert_eq!(*kept, 1);
+    }
+    assert_eq!(st.extent(), 8);
+}

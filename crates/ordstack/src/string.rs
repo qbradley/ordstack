@@ -95,7 +95,8 @@ impl<'v, 'f> SString<'v, 'f> {
     }
 
     /// Makes room for at least `additional` more bytes. On failure the
-    /// string is unchanged.
+    /// string is unchanged (the stack may still have reclaimed unreachable
+    /// space above it).
     pub fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
         self.vec.try_reserve(additional)
     }
@@ -120,13 +121,27 @@ impl<'v, 'f> SString<'v, 'f> {
     }
 
     /// Freezes the string in place; see [`SVec::freeze`].
+    ///
+    /// # Examples
+    /// ```
+    /// use ordstack::{SString, Stack};
+    ///
+    /// let mut st = Stack::with_reserve(1 << 16);
+    /// let mut f = st.frame();
+    /// let mut s = SString::new_in(&mut f);
+    /// s.push_str("ab");
+    /// s.push('c');
+    /// let frozen = s.freeze();
+    /// assert_eq!(frozen.as_str(), "abc");
+    /// ```
     pub fn freeze(self) -> SStr<'f> {
         // SAFETY: the bytes are valid UTF-8.
         unsafe { SStr::from_utf8_unchecked(self.vec.freeze()) }
     }
 
     /// Copies the string into a frozen block of `dst`; see
-    /// [`SVec::freeze_into`].
+    /// [`SVec::freeze_into`]. `dst` cannot be the frame this string holds; in
+    /// practice it is a frame of another stack.
     ///
     /// # Panics
     /// If `dst`'s stack is exhausted.

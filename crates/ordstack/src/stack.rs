@@ -59,6 +59,17 @@ impl Stack {
 
     /// Reclaims everything and returns the cursor for the empty stack.
     /// Taking `&mut self` proves that nothing on the stack is still alive.
+    ///
+    /// # Examples
+    /// ```
+    /// use ordstack::Stack;
+    ///
+    /// let mut st = Stack::with_reserve(1 << 16);
+    /// let mut f = st.frame();
+    /// let a = f.alloc(1u32);
+    /// let b = f.alloc(2u32); // beside `a`; both live as long as `st` stays borrowed
+    /// assert_eq!(*a + *b, 3);
+    /// ```
     pub fn frame(&mut self) -> Frame<'_> {
         self.reset_to(0);
         Frame { st: self, end: 0 }
@@ -82,7 +93,8 @@ impl Stack {
         self.region.len()
     }
 
-    /// Bytes currently in use, including space that will be reclaimed lazily.
+    /// The current bump offset: bytes in use, including space that is no
+    /// longer reachable and will be reclaimed lazily.
     pub fn extent(&self) -> usize {
         self.top.get()
     }

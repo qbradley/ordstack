@@ -130,7 +130,8 @@ impl<'v, 'f, T> SVec<'v, 'f, T> {
     }
 
     /// Makes room for at least `additional` more elements. On failure the
-    /// vector is unchanged.
+    /// vector is unchanged (the stack may still have reclaimed unreachable
+    /// space above it).
     pub fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
         let needed = self.len.checked_add(additional).ok_or(OVERFLOW)?;
         if needed <= self.cap {
@@ -370,6 +371,25 @@ impl<'v, 'f, T> SVec<'v, 'f, T> {
 
     /// Freeze and descend: a frame above this vector. The vector cannot be
     /// used until the frame and everything allocated through it are gone.
+    /// The new frame starts at the end of the vector's capacity, so the
+    /// vector keeps its spare room.
+    ///
+    /// # Examples
+    /// ```
+    /// use ordstack::{SVec, Stack};
+    ///
+    /// let mut st = Stack::with_reserve(1 << 16);
+    /// let mut f = st.frame();
+    /// let mut v: SVec<u32> = SVec::new_in(&mut f);
+    /// v.push(1);
+    /// {
+    ///     let mut up = v.above();
+    ///     let b = up.alloc(2u32);
+    ///     assert_eq!(*b, 2);
+    /// }
+    /// v.push(3);
+    /// assert_eq!(&*v, [1, 3]);
+    /// ```
     pub fn above(&mut self) -> Frame<'_> {
         let end = self.end_off();
         self.frame.st.reset_to(end);
@@ -381,6 +401,20 @@ impl<'v, 'f, T> SVec<'v, 'f, T> {
 
     /// Like [`above`](Self::above), but the elements stay readable and
     /// writable. The vector still cannot grow or shrink.
+    ///
+    /// # Examples
+    /// ```
+    /// use ordstack::{SVec, Stack};
+    ///
+    /// let mut st = Stack::with_reserve(1 << 16);
+    /// let mut f = st.frame();
+    /// let mut v: SVec<u32> = SVec::from_iter_in([1, 2, 3], &mut f);
+    /// let (elems, mut up) = v.split_above();
+    /// let copy = up.alloc_slice_copy(elems);
+    /// elems[0] = 10;
+    /// assert_eq!(&*copy, [1, 2, 3]);
+    /// assert_eq!(elems, [10, 2, 3]);
+    /// ```
     pub fn split_above(&mut self) -> (&mut [T], Frame<'_>) {
         self.check();
         let end = self.end_off();
@@ -408,6 +442,19 @@ impl<'v, 'f, T> SVec<'v, 'f, T> {
 
     /// Freezes the vector in place, without copying. Spare capacity goes
     /// back to the stack, and the frame can be used again.
+    ///
+    /// # Examples
+    /// ```
+    /// use ordstack::{SVec, Stack};
+    ///
+    /// let mut st = Stack::with_reserve(1 << 16);
+    /// let mut f = st.frame();
+    /// let mut v: SVec<u32> = SVec::new_in(&mut f);
+    /// v.extend([1, 2, 3]);
+    /// let s = v.freeze();
+    /// let b = f.alloc(4u32); // sits beside `s`
+    /// assert_eq!((&*s, *b), (&[1, 2, 3][..], 4));
+    /// ```
     pub fn freeze(self) -> SSlice<'f, T> {
         self.check();
         let (frame, ptr, len, allocated) = self.into_parts();
@@ -430,8 +477,40 @@ impl<'v, 'f, T> SVec<'v, 'f, T> {
     /// Moves the elements into a frozen block of `dst` with one bitwise
     /// copy. This vector's buffer is left to be reclaimed.
     ///
+    /// `dst` cannot be the frame this vector holds, nor any frame beneath
+    /// it: those stay mutably borrowed for as long as the vector exists. In
+    /// practice `dst` is a frame of another stack. To freeze onto the
+    /// vector's own frame use [`freeze`](Self::freeze).
+    ///
     /// # Panics
-    /// If `dst`'s stack is exhausted.
+    /// If `dst`'s stack is exhausted, or if the block has non-zero size and
+    /// `T` needs alignment above 4096. The vector is then dropped with its
+    /// elements during unwinding.
+    ///
+    /// # Examples
+    /// ```
+    /// use ordstack::{SVec, Stack};
+    ///
+    /// let mut results = Stack::with_reserve(1 << 16);
+    /// let mut scratch = Stack::with_reserve(1 << 16);
+    /// let (mut out, mut tmp) = (results.frame(), scratch.frame());
+    /// let mut v: SVec<u32> = SVec::new_in(&mut tmp);
+    /// v.extend([3, 1, 2]);
+    /// v.sort();
+    /// let s = v.freeze_into(&mut out);
+    /// assert_eq!(&*s, [1, 2, 3]);
+    /// ```
+    ///
+    /// The vector's own frame is rejected by the borrow checker:
+    ///
+    /// ```compile_fail,E0499
+    /// use ordstack::{SVec, Stack};
+    ///
+    /// let mut st = Stack::with_reserve(1 << 16);
+    /// let mut f = st.frame();
+    /// let v: SVec<u32> = SVec::new_in(&mut f);
+    /// let s = v.freeze_into(&mut f); // error: `f` is already mutably borrowed by `v`
+    /// ```
     pub fn freeze_into<'g>(mut self, dst: &mut Frame<'g>) -> SSlice<'g, T> {
         self.check();
         let len = self.len;

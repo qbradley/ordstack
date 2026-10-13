@@ -26,7 +26,20 @@ impl<'f, T> SFixedVec<'f, T> {
     /// Reserves a block for `cap` elements.
     ///
     /// # Panics
-    /// If the stack is exhausted.
+    /// If the stack is exhausted, the size overflows, or a block of non-zero
+    /// size needs alignment above 4096.
+    ///
+    /// # Examples
+    /// ```
+    /// use ordstack::{SBox, SFixedVec, Stack};
+    ///
+    /// let mut st = Stack::with_reserve(1 << 16);
+    /// let mut f = st.frame();
+    /// let mut kids: SFixedVec<SBox<u32>> = SFixedVec::with_capacity_in(2, &mut f);
+    /// kids.push(f.alloc(1)); // the frame is still usable while `kids` fills
+    /// kids.push(f.alloc(2));
+    /// assert_eq!(*kids[0] + *kids[1], 3);
+    /// ```
     pub fn with_capacity_in(cap: usize, frame: &mut Frame<'f>) -> SFixedVec<'f, T> {
         let ptr = frame.try_alloc_array::<T>(cap).unwrap_or_else(|e| fail(e));
         SFixedVec {
