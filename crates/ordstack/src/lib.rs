@@ -13,9 +13,16 @@ mod error;
 mod frame;
 mod macros;
 mod region;
+mod slice;
 mod stack;
 
 pub use boxed::SBox;
 pub use error::{AllocError, AllocErrorKind};
 pub use frame::Frame;
+pub use slice::{SSlice, SStr};
 pub use stack::{DEFAULT_RESERVE, Stack};
+
+/// Iterator types.
+pub mod iter {
+    pub use crate::slice::IntoIter;
+}

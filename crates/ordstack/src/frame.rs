@@ -5,6 +5,7 @@ use core::ptr::NonNull;
 
 use crate::boxed::SBox;
 use crate::error::{AllocError, AllocErrorKind, fail};
+use crate::slice::{SSlice, SStr, drop_back_to_front};
 use crate::stack::Stack;
 
 /// An allocation cursor above some lower object.
@@ -65,10 +66,70 @@ impl<'f> Frame<'f> {
         Ok(self.st.ptr_at(start).cast())
     }
 
+    /// Copies `src` into a frozen block.
+    ///
+    /// # Panics
+    /// If the stack is exhausted.
+    pub fn alloc_slice_copy<T: Copy>(&mut self, src: &[T]) -> SSlice<'f, T> {
+        let p = self
+            .try_alloc_array::<T>(src.len())
+            .unwrap_or_else(|e| fail(e));
+        // SAFETY: `p` is a fresh block for `src.len()` values, disjoint from
+        // `src`; `T: Copy`, so a bitwise copy initialises it.
+        unsafe {
+            core::ptr::copy_nonoverlapping(src.as_ptr(), p.as_ptr(), src.len());
+            SSlice::from_raw_parts(p, src.len())
+        }
+    }
+
+    /// Clones `src` into a frozen block. If a `clone` panics, the clones made
+    /// so far are dropped; the block's space stays with this frame.
+    ///
+    /// # Panics
+    /// If the stack is exhausted.
+    pub fn alloc_slice_clone<T: Clone>(&mut self, src: &[T]) -> SSlice<'f, T> {
+        struct Done<T> {
+            ptr: *mut T,
+            n: usize,
+        }
+        impl<T> Drop for Done<T> {
+            fn drop(&mut self) {
+                // SAFETY: the first `n` slots were initialised by the loop.
+                unsafe { drop_back_to_front(self.ptr, self.n) };
+            }
+        }
+        let p = self
+            .try_alloc_array::<T>(src.len())
+            .unwrap_or_else(|e| fail(e));
+        let mut done = Done {
+            ptr: p.as_ptr(),
+            n: 0,
+        };
+        for x in src {
+            // SAFETY: slot `n < src.len()` is inside the fresh block and
+            // uninitialised.
+            unsafe { done.ptr.add(done.n).write(x.clone()) };
+            done.n += 1;
+        }
+        core::mem::forget(done);
+        // SAFETY: all `src.len()` slots are initialised.
+        unsafe { SSlice::from_raw_parts(p, src.len()) }
+    }
+
+    /// Copies `src` into a frozen block.
+    ///
+    /// # Panics
+    /// If the stack is exhausted.
+    pub fn alloc_str(&mut self, src: &str) -> SStr<'f> {
+        // SAFETY: the bytes come from a `str`.
+        unsafe { SStr::from_utf8_unchecked(self.alloc_slice_copy(src.as_bytes())) }
+    }
+
     /// Moves `value` into a frozen block.
     ///
     /// # Panics
-    /// If the stack is exhausted or `T`'s alignment is above 4096.
+    /// If the stack is exhausted, or if `T` is not zero-size and its alignment
+    /// is above 4096.
     pub fn alloc<T>(&mut self, value: T) -> SBox<'f, T> {
         self.try_alloc(value).unwrap_or_else(|e| fail(e))
     }

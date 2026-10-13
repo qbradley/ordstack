@@ -1,4 +1,4 @@
-use ordstack::{AllocErrorKind, SBox, Stack};
+use ordstack::{AllocErrorKind, SBox, SSlice, SStr, Stack};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -40,7 +40,7 @@ fn sub_frame_is_reclaimed_when_parent_is_used() {
     assert_eq!(f.end_offset(), 16);
     assert_eq!((*a, *b), (1, 2));
     drop((a, b));
-    drop(f);
+    let _ = f;
     assert_eq!(st.extent(), 16); // lazy: nothing reclaims on drop
     st.reset();
     assert_eq!(st.extent(), 0);
@@ -98,7 +98,7 @@ fn zero_sized_and_overaligned_values() {
     #[repr(align(64))]
     struct A64(u8);
     #[repr(align(8192))]
-    struct Huge(u8);
+    struct Huge(#[allow(dead_code)] u8);
     let mut st = Stack::with_reserve(1 << 16);
     let mut f = st.frame();
     let _odd = f.alloc(1u8);
@@ -149,4 +149,69 @@ fn box_forwards_common_traits() {
     let mut set = HashSet::new();
     set.insert(a);
     assert!(set.contains(&3u32));
+}
+
+#[derive(Clone)]
+struct C(u32, Rc<RefCell<Vec<u32>>>);
+impl Drop for C {
+    fn drop(&mut self) {
+        self.1.borrow_mut().push(self.0);
+    }
+}
+
+#[test]
+fn slice_copy_and_str() {
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let mut s = f.alloc_slice_copy(&[1u32, 2, 3]);
+    let t = f.alloc_str("héllo");
+    s[1] = 20;
+    assert_eq!(&*s, [1, 20, 3]);
+    assert_eq!(t.as_str(), "héllo");
+    assert_eq!(format!("{t} {t:?}"), "héllo \"héllo\"");
+    assert_eq!(f.end_offset(), 12 + 6);
+    let e = f.alloc_slice_copy::<u64>(&[]);
+    let es = f.alloc_str("");
+    assert!(e.is_empty() && es.is_empty());
+    assert_eq!(f.end_offset(), 18);
+    assert!(SSlice::<u8>::empty().is_empty());
+    assert_eq!(SStr::empty().as_str(), "");
+}
+
+#[test]
+fn slice_drops_back_to_front() {
+    let l = log();
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let src: Vec<C> = (0..4).map(|i| C(i, l.clone())).collect();
+    let s = f.alloc_slice_clone(&src);
+    drop(s);
+    assert_eq!(*l.borrow(), [3, 2, 1, 0]);
+}
+
+#[test]
+fn slice_into_iter_yields_in_order_and_drops_the_rest() {
+    let l = log();
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let src: Vec<C> = (0..5).map(|i| C(i, l.clone())).collect();
+    let s = f.alloc_slice_clone(&src);
+    let mut it = s.into_iter();
+    assert_eq!(it.len(), 5);
+    assert_eq!(it.next().unwrap().0, 0);
+    assert_eq!(it.next_back().unwrap().0, 4);
+    assert_eq!(*l.borrow(), [0, 4]);
+    drop(it);
+    assert_eq!(*l.borrow(), [0, 4, 3, 2, 1]);
+}
+
+#[test]
+fn slice_and_str_leak() {
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let xs: &mut [u8] = SSlice::leak(f.alloc_slice_copy(b"abc"));
+    let s: &mut str = SStr::leak(f.alloc_str("xyz"));
+    xs[0] = b'z';
+    s.make_ascii_uppercase();
+    assert_eq!((&*xs, &*s), (&b"zbc"[..], "XYZ"));
 }
