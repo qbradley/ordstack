@@ -88,7 +88,11 @@ mod os {
                 0,
             )
         };
-        if p == libc::MAP_FAILED { None } else { NonNull::new(p.cast()) }
+        if p == libc::MAP_FAILED {
+            None
+        } else {
+            NonNull::new(p.cast())
+        }
     }
 
     /// # Safety
@@ -178,7 +182,10 @@ mod tests {
         let e = Region::reserve(usize::MAX).err().unwrap();
         assert_eq!(e.kind(), AllocErrorKind::CapacityOverflow);
         let e = Region::reserve(isize::MAX as usize).err().unwrap();
-        assert!(matches!(e.kind(), AllocErrorKind::MapFailed | AllocErrorKind::CapacityOverflow));
+        assert!(matches!(
+            e.kind(),
+            AllocErrorKind::MapFailed | AllocErrorKind::CapacityOverflow
+        ));
     }
 
     #[test]

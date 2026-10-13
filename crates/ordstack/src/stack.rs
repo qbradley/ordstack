@@ -49,7 +49,11 @@ impl Stack {
     pub fn try_with_reserve(bytes: usize) -> Result<Stack, AllocError> {
         let region = Region::reserve(bytes)?;
         debug::register(region.base().as_ptr() as usize, region.len());
-        Ok(Stack { region, top: Cell::new(0), high: Cell::new(0) })
+        Ok(Stack {
+            region,
+            top: Cell::new(0),
+            high: Cell::new(0),
+        })
     }
 
     /// Reclaims everything on the stack now. Taking `&mut self` proves that
@@ -91,7 +95,10 @@ impl Stack {
     /// Reset on reacquire. The caller holds `&mut` to the object whose end
     /// is `off`, so by invariant I nothing above `off` is reachable.
     pub(crate) fn reset_to(&self, off: usize) {
-        debug_assert!(off <= self.top.get(), "ordstack: internal error: reset above top");
+        debug_assert!(
+            off <= self.top.get(),
+            "ordstack: internal error: reset above top"
+        );
         if self.top.get() > off {
             self.set_top(off);
         }
@@ -114,9 +121,18 @@ impl Stack {
     }
 
     /// Grows the top block, which currently ends at `old_end`, to `new_end`.
+    ///
+    /// Caller contract: the block ending at `old_end` must be the top block.
     pub(crate) fn try_extend(&self, old_end: usize, new_end: usize) -> Result<(), AllocError> {
-        debug_assert_eq!(old_end, self.top.get(), "ordstack: internal error: grow of a non-top block");
-        debug_assert!(new_end >= old_end);
+        assert_eq!(
+            old_end,
+            self.top.get(),
+            "ordstack: internal error: grow of a non-top block"
+        );
+        assert!(
+            new_end >= old_end,
+            "ordstack: internal error: extend shrinks the block"
+        );
         if new_end > self.region.len() {
             return Err(AllocError::new(AllocErrorKind::Exhausted));
         }
@@ -125,17 +141,23 @@ impl Stack {
     }
 
     pub(crate) fn ptr_at(&self, off: usize) -> NonNull<u8> {
-        debug_assert!(off <= self.region.len());
+        assert!(
+            off <= self.region.len(),
+            "ordstack: internal error: offset outside the region"
+        );
         // SAFETY: `off <= len`, so the result is inside or one past the region.
         unsafe { self.region.base().add(off) }
     }
 
+    /// `p` must point into this stack's region.
     pub(crate) fn offset_of(&self, p: NonNull<u8>) -> usize {
-        let off = p.as_ptr() as usize - self.region.base().as_ptr() as usize;
+        let off = (p.as_ptr() as usize).wrapping_sub(self.region.base().as_ptr() as usize);
         debug_assert!(off <= self.region.len());
         off
     }
 
+    /// `off` must be at or above `top`. Pages at or above `off` lose their
+    /// contents.
     pub(crate) fn release_above(&self, off: usize) {
         debug_assert!(off >= self.top.get());
         self.region.release_pages(off);
@@ -185,9 +207,18 @@ mod tests {
         let st = Stack::with_reserve(4096);
         st.try_bump(10, 1).unwrap();
         let cap = st.capacity();
-        assert_eq!(st.try_bump(cap, 1).unwrap_err().kind(), AllocErrorKind::Exhausted);
-        assert_eq!(st.try_bump(1, 8192).unwrap_err().kind(), AllocErrorKind::AlignTooLarge);
-        assert_eq!(st.try_bump(usize::MAX, 1).unwrap_err().kind(), AllocErrorKind::CapacityOverflow);
+        assert_eq!(
+            st.try_bump(cap, 1).unwrap_err().kind(),
+            AllocErrorKind::Exhausted
+        );
+        assert_eq!(
+            st.try_bump(1, 8192).unwrap_err().kind(),
+            AllocErrorKind::AlignTooLarge
+        );
+        assert_eq!(
+            st.try_bump(usize::MAX, 1).unwrap_err().kind(),
+            AllocErrorKind::CapacityOverflow
+        );
         assert_eq!(st.extent(), 10);
     }
 
@@ -198,7 +229,10 @@ mod tests {
         st.try_extend(start + 16, start + 64).unwrap();
         assert_eq!(st.extent(), 64);
         let cap = st.capacity();
-        assert_eq!(st.try_extend(64, cap + 1).unwrap_err().kind(), AllocErrorKind::Exhausted);
+        assert_eq!(
+            st.try_extend(64, cap + 1).unwrap_err().kind(),
+            AllocErrorKind::Exhausted
+        );
         assert_eq!(st.extent(), 64);
     }
 
@@ -209,6 +243,19 @@ mod tests {
         st.reset_to(40);
         assert_eq!(st.extent(), 40);
         assert_eq!(st.high_water(), 100);
+    }
+
+    #[cfg(debug_assertions)]
+    #[test]
+    fn shadow_follows_top() {
+        let st = Stack::with_reserve(4096);
+        let start = st.try_bump(16, 1).unwrap();
+        crate::debug::check_live(st.ptr_at(start).as_ptr(), 16);
+        st.reset_to(0);
+        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            crate::debug::check_live(st.ptr_at(start).as_ptr(), 16);
+        }));
+        assert!(r.is_err());
     }
 
     #[test]
