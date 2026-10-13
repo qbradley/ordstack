@@ -2,6 +2,7 @@
 
 use ordstack::{SFixedVec, SVec, Stack};
 use std::cell::{Cell, RefCell};
+use std::mem::{align_of, size_of};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::rc::Rc;
 
@@ -228,8 +229,11 @@ fn extend_panic_drops_pushed_elements_once_and_frees_the_frame() {
 
 #[test]
 fn zero_size_elements_with_drop_through_svec() {
-    // Zero-size, with a destructor that counts (a thread local, as the type has no room).
+    // Zero-size, over-aligned, with a destructor that counts (a thread local,
+    // as the type has no room). Were it given space, the alignment of 8 would
+    // move `end_offset` off the 1 left by the anchor.
     thread_local!(static N: Cell<u32> = const { Cell::new(0) });
+    #[repr(align(8))]
     struct Zst;
     impl Drop for Zst {
         fn drop(&mut self) {
@@ -237,6 +241,7 @@ fn zero_size_elements_with_drop_through_svec() {
         }
     }
     assert_eq!(size_of::<Zst>(), 0);
+    assert_eq!(align_of::<Zst>(), 8);
     let made = Cell::new(0u32);
     let mk = || {
         made.set(made.get() + 1);
@@ -244,8 +249,9 @@ fn zero_size_elements_with_drop_through_svec() {
     };
     let mut st = Stack::with_reserve(1 << 16);
     let mut f = st.frame();
-    let _anchor = f.alloc(1u64);
+    let _anchor = f.alloc(1u8);
     let end = f.end_offset();
+    assert_eq!(end, 1);
     {
         let mut v: SVec<Zst> = SVec::new_in(&mut f);
         for _ in 0..5 {
@@ -264,6 +270,10 @@ fn zero_size_elements_with_drop_through_svec() {
         v.truncate(1); // 3 dropped
         assert_eq!(N.with(Cell::get), 10);
         drop(v.pop()); // 1
+        v.push(mk());
+        let s = v.freeze();
+        assert_eq!(s.len(), 1);
+        assert_eq!(f.end_offset(), end, "freeze must not reserve room for ZSTs");
     }
     assert_eq!(f.end_offset(), end);
     {
@@ -272,23 +282,28 @@ fn zero_size_elements_with_drop_through_svec() {
             fx.push(mk());
         }
         assert_eq!(f.end_offset(), end);
+        let s = fx.into_slice();
+        assert_eq!(s.len(), 3);
+        assert_eq!(
+            f.end_offset(),
+            end,
+            "into_slice must not reserve room for ZSTs"
+        );
     }
     assert_eq!(f.end_offset(), end);
     assert_eq!(N.with(Cell::get), made.get());
-    assert_eq!(made.get(), 5 + 2 + 4 + 3);
+    assert_eq!(made.get(), 5 + 2 + 4 + 1 + 3);
 }
 
 #[test]
 fn insert_on_an_exhausted_stack_changes_nothing() {
     let mut st = Stack::with_reserve(4096);
-    if st.capacity() != 4096 {
-        return; // sizes below assume 4 KiB pages
-    }
+    let room = st.capacity();
     let mut f = st.frame();
-    let mut v: SVec<u8> = SVec::with_capacity_in(4096, &mut f);
+    let mut v: SVec<u8> = SVec::with_capacity_in(room, &mut f);
     let cap = v.capacity();
-    assert_eq!(cap, 4096);
-    v.extend((0..4096).map(|i| i as u8));
+    assert_eq!(cap, room);
+    v.extend((0..room).map(|i| i as u8));
     let before: Vec<u8> = v.to_vec();
     let err = catch_unwind(AssertUnwindSafe(|| v.insert(7, 99))).unwrap_err();
     let msg = err
@@ -297,6 +312,6 @@ fn insert_on_an_exhausted_stack_changes_nothing() {
         .or_else(|| err.downcast_ref::<&str>().map(|s| s.to_string()))
         .unwrap();
     assert!(msg.starts_with("ordstack: "), "{msg}");
-    assert_eq!((v.len(), v.capacity()), (4096, cap));
+    assert_eq!((v.len(), v.capacity()), (room, cap));
     assert_eq!(&*v, &before[..]);
 }

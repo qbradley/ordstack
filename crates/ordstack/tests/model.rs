@@ -28,3 +28,42 @@ fn fixed_scripts() {
     let deep: Vec<u8> = std::iter::repeat_n([0u8, 11], 10).flatten().collect();
     model::run(&deep);
 }
+
+#[test]
+fn fixed_script_restart_at_depth_zero() {
+    // push x3, op 12 drops them and starts afresh, push x2, pop, then a
+    // freeze and a second restart with frozen blocks alive.
+    model::run(&[0, 1, 2, 12, 3, 4, 6, 13, 0, 12, 5, 12, 12]);
+}
+
+#[test]
+fn fixed_script_swap_remove() {
+    // push x5, swap_remove 1, swap_remove 200 (-> last-ish), on an empty
+    // vector twice, then refill.
+    model::run(&[0, 0, 0, 0, 0, 16, 1, 16, 200, 17, 16, 5, 16, 0, 0, 16, 0]);
+}
+
+#[test]
+fn fixed_script_clear() {
+    model::run(&[0, 1, 2, 17, 3, 17, 17, 4, 17]);
+}
+
+#[test]
+fn fixed_script_extend() {
+    // extend by 5, 0 and 7 values, with pushes and a pop between.
+    model::run(&[18, 5, 0, 18, 0, 6, 18, 7, 18, 13, 18, 255]);
+}
+
+#[test]
+fn fixed_script_freeze_into() {
+    // At depth 0: push x3, freeze_into, push, freeze_into twice (the second
+    // from empty). Then descend, push, freeze_into at depth 1, push x2, leave.
+    model::run(&[0, 0, 0, 19, 0, 19, 19, 0, 11, 0, 19, 0, 0, 12, 0, 13]);
+}
+
+#[test]
+fn fixed_script_sub_scope() {
+    // sub scopes of 1 and 4 rounds, with elements below, at depth 0 and
+    // inside a descended level, then an ordinary freeze.
+    model::run(&[0, 0, 20, 0, 20, 3, 11, 0, 20, 1, 20, 255, 12, 13, 20, 2]);
+}
