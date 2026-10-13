@@ -15,6 +15,8 @@ macro_rules! deref_traits {
             }
         }
         impl<$($g)*> Eq for $ty where $target: Eq {}
+        // The bound is `PartialOrd`, weaker than `Ord`, so the canonical `Some(self.cmp(other))` is unavailable.
+        #[allow(clippy::non_canonical_partial_ord_impl)]
         impl<$($g)*> PartialOrd for $ty where $target: PartialOrd {
             fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
                 PartialOrd::partial_cmp(&**self, &**other)
