@@ -1,0 +1,10 @@
+error[E0499]: cannot borrow `lower` as mutable more than once at a time
+ --> tests/ui/fail/01_push_while_above.rs:8:5
+  |
+6 |     let mut above = lower.above();
+  |                     ----- first mutable borrow occurs here
+7 |     let mut upper: SVec<u32> = SVec::new_in(&mut above);
+8 |     lower.push(1); // ERROR
+  |     ^^^^^ second mutable borrow occurs here
+9 |     upper.push(2);
+  |     ----- first borrow later used here

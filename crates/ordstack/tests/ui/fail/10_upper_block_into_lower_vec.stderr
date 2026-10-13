@@ -1,0 +1,23 @@
+error[E0597]: `lower` does not live long enough
+ --> tests/ui/fail/10_upper_block_into_lower_vec.rs:6:13
+  |
+5 |     let mut lower: SVec<SBox<u32>> = SVec::new_in(&mut f);
+  |         --------- binding `lower` declared here
+6 |     let b = lower.above().alloc(7u32);
+  |             ^^^^^ borrowed value does not live long enough
+7 |     lower.push(b); // ERROR
+8 | }
+  | -
+  | |
+  | `lower` dropped here while still borrowed
+  | borrow might be used here, when `lower` is dropped and runs the `Drop` code for type `SVec`
+
+error[E0499]: cannot borrow `lower` as mutable more than once at a time
+ --> tests/ui/fail/10_upper_block_into_lower_vec.rs:7:5
+  |
+6 |     let b = lower.above().alloc(7u32);
+  |             ----- first mutable borrow occurs here
+7 |     lower.push(b); // ERROR
+  |     ^^^^^      - first borrow later used here
+  |     |
+  |     second mutable borrow occurs here

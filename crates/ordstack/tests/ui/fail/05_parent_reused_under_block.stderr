@@ -1,0 +1,9 @@
+error[E0499]: cannot borrow `f` as mutable more than once at a time
+ --> tests/ui/fail/05_parent_reused_under_block.rs:6:14
+  |
+5 |     let b = f.sub().alloc(5u32);
+  |             - first mutable borrow occurs here
+6 |     let _c = f.alloc(6u32); // ERROR
+  |              ^ second mutable borrow occurs here
+7 |     assert_eq!(*b, 5);
+  |                 - first borrow later used here

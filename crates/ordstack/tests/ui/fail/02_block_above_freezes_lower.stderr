@@ -1,0 +1,9 @@
+error[E0499]: cannot borrow `lower` as mutable more than once at a time
+ --> tests/ui/fail/02_block_above_freezes_lower.rs:7:5
+  |
+6 |     let b = lower.above().alloc(7u32);
+  |             ----- first mutable borrow occurs here
+7 |     lower.push(1); // ERROR
+  |     ^^^^^ second mutable borrow occurs here
+8 |     assert_eq!(*b, 7);
+  |                 - first borrow later used here

@@ -1,0 +1,9 @@
+error[E0499]: cannot borrow `st` as mutable more than once at a time
+ --> tests/ui/fail/07_reset_under_block.rs:5:5
+  |
+4 |     let b = st.frame().alloc(5u32);
+  |             -- first mutable borrow occurs here
+5 |     st.reset(); // ERROR
+  |     ^^ second mutable borrow occurs here
+6 |     assert_eq!(*b, 5);
+  |                 - first borrow later used here
