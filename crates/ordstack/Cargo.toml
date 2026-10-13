@@ -1,0 +1,20 @@
+[package]
+name = "ordstack"
+description = "Stack-allocated growable containers whose stack discipline is proved by the borrow checker"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+readme = "../../README.md"
+keywords = ["allocator", "arena", "bump", "stack", "region"]
+categories = ["memory-management", "data-structures"]
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+trybuild = "1"
+proptest = { version = "1", default-features = false, features = ["std"] }
+
+[lints.clippy]
+undocumented_unsafe_blocks = "deny"

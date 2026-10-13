@@ -1,0 +1,5 @@
+target/
+Cargo.lock
+crates/ordstack/fuzz/artifacts/
+crates/ordstack/fuzz/corpus/
+crates/ordstack/fuzz/target/
