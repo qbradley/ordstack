@@ -1,0 +1,335 @@
+//! [`SVec`], the growable vector.
+
+use core::marker::PhantomData;
+use core::mem::{ManuallyDrop, align_of, size_of};
+use core::ops::{Deref, DerefMut};
+use core::ptr::NonNull;
+
+use crate::debug;
+use crate::error::{AllocError, AllocErrorKind, fail};
+use crate::frame::Frame;
+use crate::slice::{SSlice, drop_back_to_front};
+
+const OVERFLOW: AllocError = AllocError::new(AllocErrorKind::CapacityOverflow);
+
+/// A growable vector on a stack.
+///
+/// The vector holds its frame exclusively, so whenever it can be reached
+/// mutably its buffer is the top block of the stack and grows in place. To
+/// allocate anything else on the same stack, take a frame above the vector
+/// with [`above`](Self::above); the vector is frozen until that frame and
+/// everything allocated through it are gone.
+///
+/// Elements are dropped back to front.
+pub struct SVec<'v, 'f, T> {
+    frame: &'v mut Frame<'f>,
+    /// Start of the buffer; dangling while nothing is allocated.
+    ptr: NonNull<T>,
+    len: usize,
+    /// `usize::MAX` for zero-size `T`, which never allocates.
+    cap: usize,
+    _owns: PhantomData<T>,
+}
+
+impl<'v, 'f, T> SVec<'v, 'f, T> {
+    const ZST: bool = size_of::<T>() == 0;
+
+    /// An empty vector on top of `frame`. Allocates nothing yet.
+    pub fn new_in(frame: &'v mut Frame<'f>) -> SVec<'v, 'f, T> {
+        let cap = if Self::ZST { usize::MAX } else { 0 };
+        SVec {
+            frame,
+            ptr: NonNull::dangling(),
+            len: 0,
+            cap,
+            _owns: PhantomData,
+        }
+    }
+
+    /// An empty vector with room for exactly `cap` elements.
+    ///
+    /// # Panics
+    /// If the stack is exhausted.
+    pub fn with_capacity_in(cap: usize, frame: &'v mut Frame<'f>) -> SVec<'v, 'f, T> {
+        let mut v = SVec::new_in(frame);
+        if cap > v.cap {
+            v.try_grow_to(cap).unwrap_or_else(|e| fail(e));
+        }
+        v
+    }
+
+    /// Collects `iter` into a vector on top of `frame`.
+    pub fn from_iter_in<I: IntoIterator<Item = T>>(
+        iter: I,
+        frame: &'v mut Frame<'f>,
+    ) -> SVec<'v, 'f, T> {
+        let mut v = SVec::new_in(frame);
+        v.extend(iter);
+        v
+    }
+
+    fn allocated(&self) -> bool {
+        !Self::ZST && self.cap > 0
+    }
+
+    /// Offset of the buffer's start. Only meaningful when allocated.
+    fn start_off(&self) -> usize {
+        self.frame.st.offset_of(self.ptr.cast())
+    }
+
+    /// Offset of the end of this vector: its capacity end, or the frame's
+    /// end while nothing is allocated.
+    fn end_off(&self) -> usize {
+        if self.allocated() {
+            self.start_off() + self.cap * size_of::<T>()
+        } else {
+            self.frame.end
+        }
+    }
+
+    fn check(&self) {
+        debug::check_live(
+            self.ptr.as_ptr().cast(),
+            if Self::ZST {
+                0
+            } else {
+                self.cap * size_of::<T>()
+            },
+        );
+    }
+
+    /// Sets the capacity to `new_cap > self.cap`. Never moves the buffer.
+    /// On failure nothing changes.
+    fn try_grow_to(&mut self, new_cap: usize) -> Result<(), AllocError> {
+        debug_assert!(!Self::ZST && new_cap > self.cap);
+        let st = self.frame.st;
+        let bytes = new_cap.checked_mul(size_of::<T>()).ok_or(OVERFLOW)?;
+        let old_end = self.end_off();
+        // We hold `&mut self`, so by invariant I nothing above our end is
+        // reachable; after this reset our buffer is the top block.
+        st.reset_to(old_end);
+        if self.allocated() {
+            let new_end = self.start_off().checked_add(bytes).ok_or(OVERFLOW)?;
+            st.try_extend(old_end, new_end)?;
+        } else {
+            let start = st.try_bump(bytes, align_of::<T>())?;
+            self.ptr = st.ptr_at(start).cast();
+        }
+        self.cap = new_cap;
+        Ok(())
+    }
+
+    /// Makes room for at least `additional` more elements.
+    ///
+    /// # Panics
+    /// If the stack is exhausted or the capacity overflows.
+    pub fn reserve(&mut self, additional: usize) {
+        self.try_reserve(additional).unwrap_or_else(|e| fail(e));
+    }
+
+    /// Makes room for at least `additional` more elements. On failure the
+    /// vector is unchanged.
+    pub fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
+        let needed = self.len.checked_add(additional).ok_or(OVERFLOW)?;
+        if needed <= self.cap {
+            return Ok(());
+        }
+        // Amortised doubling, falling back to the exact size when the
+        // doubled buffer does not fit.
+        let doubled = self.cap.saturating_mul(2).max(4);
+        if doubled > needed && self.try_grow_to(doubled).is_ok() {
+            return Ok(());
+        }
+        self.try_grow_to(needed)
+    }
+
+    /// The number of elements the vector can hold without growing.
+    pub fn capacity(&self) -> usize {
+        self.cap
+    }
+
+    /// Appends `value`.
+    ///
+    /// # Panics
+    /// If the stack is exhausted.
+    pub fn push(&mut self, value: T) {
+        if let Err((_, e)) = self.try_push(value) {
+            fail(e);
+        }
+    }
+
+    /// Appends `value`, or returns it with the reason it did not fit.
+    pub fn try_push(&mut self, value: T) -> Result<(), (T, AllocError)> {
+        if self.len == self.cap {
+            if let Err(e) = self.try_reserve(1) {
+                return Err((value, e));
+            }
+        }
+        self.check();
+        // SAFETY: `len < cap`: the slot is inside our buffer and holds no
+        // value. For a zero-size `T` the pointer is dangling and aligned.
+        unsafe { self.ptr.as_ptr().add(self.len).write(value) };
+        self.len += 1;
+        Ok(())
+    }
+
+    /// Removes and returns the last element.
+    pub fn pop(&mut self) -> Option<T> {
+        if self.len == 0 {
+            return None;
+        }
+        self.check();
+        self.len -= 1;
+        // SAFETY: the slot was initialised and is now outside `[0, len)`.
+        Some(unsafe { self.ptr.as_ptr().add(self.len).read() })
+    }
+
+    /// Appends a copy of every element of `src`.
+    ///
+    /// # Panics
+    /// If the stack is exhausted.
+    pub fn extend_from_slice(&mut self, src: &[T])
+    where
+        T: Copy,
+    {
+        self.reserve(src.len());
+        self.check();
+        // SAFETY: `reserve` made room for `src.len()` more values; `src`
+        // cannot overlap spare capacity that only `self` can reach.
+        unsafe {
+            core::ptr::copy_nonoverlapping(src.as_ptr(), self.ptr.as_ptr().add(self.len), src.len())
+        };
+        self.len += src.len();
+    }
+
+    /// Gives unused capacity back to the stack. Never moves the buffer.
+    pub fn shrink_to_fit(&mut self) {
+        if !self.allocated() {
+            return;
+        }
+        let st = self.frame.st;
+        if self.len == 0 {
+            st.reset_to(self.frame.end);
+            self.ptr = NonNull::dangling();
+            self.cap = 0;
+        } else {
+            st.reset_to(self.start_off() + self.len * size_of::<T>());
+            self.cap = self.len;
+        }
+    }
+
+    /// Freeze and descend: a frame above this vector. The vector cannot be
+    /// used until the frame and everything allocated through it are gone.
+    pub fn above(&mut self) -> Frame<'_> {
+        let end = self.end_off();
+        self.frame.st.reset_to(end);
+        Frame {
+            st: self.frame.st,
+            end,
+        }
+    }
+
+    /// Like [`above`](Self::above), but the elements stay readable and
+    /// writable. The vector still cannot grow or shrink.
+    pub fn split_above(&mut self) -> (&mut [T], Frame<'_>) {
+        self.check();
+        let end = self.end_off();
+        self.frame.st.reset_to(end);
+        let frame = Frame {
+            st: self.frame.st,
+            end,
+        };
+        // SAFETY: `len` initialised values. The frame only hands out memory
+        // at or above `end`, which is disjoint from the elements.
+        (
+            unsafe { core::slice::from_raw_parts_mut(self.ptr.as_ptr(), self.len) },
+            frame,
+        )
+    }
+
+    fn into_parts(self) -> (&'v mut Frame<'f>, NonNull<T>, usize, bool) {
+        let allocated = self.allocated();
+        let this = ManuallyDrop::new(self);
+        // SAFETY: `this` is never used or dropped again, so this moves the
+        // unique reference out of it.
+        let frame = unsafe { core::ptr::read(&this.frame) };
+        (frame, this.ptr, this.len, allocated)
+    }
+
+    /// Freezes the vector in place, without copying. Spare capacity goes
+    /// back to the stack, and the frame can be used again.
+    pub fn freeze(self) -> SSlice<'f, T> {
+        self.check();
+        let (frame, ptr, len, allocated) = self.into_parts();
+        if allocated {
+            let st = frame.st;
+            if len == 0 {
+                st.reset_to(frame.end);
+                return SSlice::empty();
+            }
+            let new_end = st.offset_of(ptr.cast()) + len * size_of::<T>();
+            st.reset_to(new_end);
+            frame.end = new_end;
+        }
+        // SAFETY: `len` initialised values now lie below `frame.end`, which
+        // does not decrease while `'f` is alive. When nothing is allocated,
+        // `len * size_of::<T>() == 0` and `ptr` is dangling and aligned.
+        unsafe { SSlice::from_raw_parts(ptr, len) }
+    }
+
+    /// Moves the elements into a frozen block of `dst` with one bitwise
+    /// copy. This vector's buffer is left to be reclaimed.
+    ///
+    /// # Panics
+    /// If `dst`'s stack is exhausted.
+    pub fn freeze_into<'g>(mut self, dst: &mut Frame<'g>) -> SSlice<'g, T> {
+        self.check();
+        let len = self.len;
+        let p = dst.try_alloc_array::<T>(len).unwrap_or_else(|e| fail(e));
+        // SAFETY: `p` is a fresh block for `len` values and cannot overlap
+        // our buffer. Setting `self.len = 0` hands ownership to the copy.
+        unsafe {
+            core::ptr::copy_nonoverlapping(self.ptr.as_ptr(), p.as_ptr(), len);
+            self.len = 0;
+            SSlice::from_raw_parts(p, len)
+        }
+    }
+}
+
+impl<T> Deref for SVec<'_, '_, T> {
+    type Target = [T];
+    fn deref(&self) -> &[T] {
+        self.check();
+        // SAFETY: `len` initialised values.
+        unsafe { core::slice::from_raw_parts(self.ptr.as_ptr(), self.len) }
+    }
+}
+
+impl<T> DerefMut for SVec<'_, '_, T> {
+    fn deref_mut(&mut self) -> &mut [T] {
+        self.check();
+        // SAFETY: `len` initialised values; unique owner.
+        unsafe { core::slice::from_raw_parts_mut(self.ptr.as_ptr(), self.len) }
+    }
+}
+
+impl<T> Extend<T> for SVec<'_, '_, T> {
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        let iter = iter.into_iter();
+        // A hint that does not fit is not an error; `push` decides.
+        let _ = self.try_reserve(iter.size_hint().0);
+        for x in iter {
+            self.push(x);
+        }
+    }
+}
+
+impl<T> Drop for SVec<'_, '_, T> {
+    fn drop(&mut self) {
+        self.check();
+        let len = core::mem::replace(&mut self.len, 0);
+        // SAFETY: we own `len` initialised values and `self.len` is now 0.
+        // The buffer itself is reclaimed when the frame is next used.
+        unsafe { drop_back_to_front(self.ptr.as_ptr(), len) };
+    }
+}
