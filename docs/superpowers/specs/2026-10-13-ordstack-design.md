@@ -178,9 +178,10 @@ because the frame is mutably borrowed.
 
 ### 4.3 Frozen handles
 
-- `SBox<'f, T>`: owns one `T`. `Deref`, `DerefMut`, `into_inner`, `leak(self)
-  -> &'f mut T`. Dropping it drops the `T`; the bytes stay until the frame is
-  reclaimed.
+- `SBox<'f, T>`: owns one `T`. `Deref`, `DerefMut`, and the associated
+  functions `SBox::into_inner(b) -> T` and `SBox::leak(b) -> &'f mut T` (as
+  on `Box`, so they cannot shadow methods of `T`). Dropping it drops the
+  `T`; the bytes stay until the frame is reclaimed.
 - `SSlice<'f, T>`: owns `[T]`. `Deref<Target = [T]>`, `DerefMut`,
   `IntoIterator` by value, `leak`. Drops elements back to front.
 - `SStr<'f>`: owns `str`. `Deref<Target = str>`, `as_str`, `leak`.
@@ -199,6 +200,7 @@ impl<'v, 'f, T> SVec<'v, 'f, T> {
     pub fn push(&mut self, value: T);
     pub fn try_push(&mut self, value: T) -> Result<(), (T, AllocError)>;
     pub fn pop(&mut self) -> Option<T>;
+    pub fn extend_from_slice(&mut self, src: &[T]) where T: Copy;
     pub fn insert(&mut self, index: usize, value: T);
     pub fn remove(&mut self, index: usize) -> T;
     pub fn swap_remove(&mut self, index: usize) -> T;
@@ -308,7 +310,8 @@ ordstack/
     src/string.rs            SString
     src/fixed.rs             SFixedVec
     src/error.rs             AllocError
-    src/debug.rs             debug-build shadow record (cfg(debug_assertions))
+    src/macros.rs            trait impls that delegate to a Deref target
+    src/debug.rs             debug-build shadow (cfg(debug_assertions))
     tests/                   behaviour, drop order, panic paths, model tests
     tests/ui/                trybuild compile-fail cases
     fuzz/                    cargo-fuzz target
@@ -399,11 +402,15 @@ line.
 
 ### 8.4 Debug-build shadow
 
-With `debug_assertions`, the stack records each live block's range and
-asserts on every grow that the block is on top and on every reset that no
-recorded live block is above the new `top`. These assertions are expected
-never to fire; a firing is a soundness bug. Release builds contain none of
-this.
+With `debug_assertions`, each thread keeps a table of its live regions and
+their current `top`. Every access through a handle asserts that the handle's
+block lies below `top`, and every grow asserts that the block ends exactly
+at `top`. These assertions are expected never to fire; a firing is a
+soundness bug. Release builds contain none of this.
+
+The shadow does not record individual blocks: a record of "live" blocks
+would fire when a handle is forgotten with `mem::forget` and its space is
+later reclaimed, which is safe.
 
 ### 8.5 Continuous integration
 
