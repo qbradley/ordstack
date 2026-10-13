@@ -16,6 +16,7 @@ mod macros;
 mod region;
 mod slice;
 mod stack;
+mod string;
 mod vec;
 
 pub use boxed::SBox;
@@ -24,6 +25,7 @@ pub use fixed::SFixedVec;
 pub use frame::Frame;
 pub use slice::{SSlice, SStr};
 pub use stack::{DEFAULT_RESERVE, Stack};
+pub use string::SString;
 pub use vec::SVec;
 
 /// Iterator types.

@@ -123,7 +123,8 @@ impl<'v, 'f, T> SVec<'v, 'f, T> {
     /// Makes room for at least `additional` more elements.
     ///
     /// # Panics
-    /// If the stack is exhausted or the capacity overflows.
+    /// If the stack is exhausted, the capacity overflows, or a non-zero-size
+    /// `T` has alignment above 4096.
     pub fn reserve(&mut self, additional: usize) {
         self.try_reserve(additional).unwrap_or_else(|e| fail(e));
     }
