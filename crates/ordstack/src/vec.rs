@@ -60,6 +60,11 @@ impl<'v, 'f, T> SVec<'v, 'f, T> {
     }
 
     /// Collects `iter` into a vector on top of `frame`.
+    ///
+    /// # Panics
+    /// If the stack is exhausted, the capacity overflows, or a non-zero-size
+    /// `T` has alignment above 4096. The elements collected so far are
+    /// dropped.
     pub fn from_iter_in<I: IntoIterator<Item = T>>(
         iter: I,
         frame: &'v mut Frame<'f>,

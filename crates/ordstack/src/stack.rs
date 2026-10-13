@@ -33,7 +33,7 @@ impl Stack {
     /// committed by the kernel when first touched.
     ///
     /// # Panics
-    /// If the mapping fails.
+    /// If the operating system refuses the mapping.
     pub fn new() -> Stack {
         Stack::with_reserve(DEFAULT_RESERVE)
     }
@@ -41,7 +41,8 @@ impl Stack {
     /// Reserves `bytes`, rounded up to whole pages.
     ///
     /// # Panics
-    /// If the mapping fails.
+    /// If `bytes`, rounded up to whole pages, is too large for a mapping
+    /// (capacity overflow), or if the operating system refuses the mapping.
     pub fn with_reserve(bytes: usize) -> Stack {
         Stack::try_with_reserve(bytes).unwrap_or_else(|e| fail(e))
     }

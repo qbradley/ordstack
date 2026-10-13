@@ -41,19 +41,19 @@ limits.
 
 ## How it differs from other bump allocators
 
-What happens when a container that is not the most recent allocation has to
-grow:
+What happens when a container has to grow while a later allocation on the
+same stack is still alive:
 
 | Crate | Behaviour |
 |---|---|
-| `ordstack` | The program does not compile. |
-| `bumpalo` | Allowed. The contents are copied to a fresh allocation; the old bytes are not reused until the arena is reset. |
-| `bump-scope` | Allowed. Its documentation says growth then needs a new allocation and the old block becomes wasted space. Separately, while an allocator is claimed (`claim`), it is replaced by a dummy that "errors when trying to allocate or grow memory", a run-time failure. |
-| `dyn-stack` | Does not arise for its own arrays: a `DynArray` is created with a fixed length. |
+| `ordstack` | The program does not compile. Once the later allocation is dead, the container grows in place, reclaiming the space above it. |
+| `bumpalo` | Allowed. Growing an allocation that is not the most recent one copies the contents to a fresh allocation; the old bytes are not reused until the arena is reset. |
+| `bump-scope` | Allowed. Growing an allocation that is not the most recent one needs a new allocation, and the old block becomes wasted space. Separately, an allocator that has been claimed fails at run time if it is asked to allocate or grow. |
+| `dyn-stack` | Does not arise for its own arrays, which are allocated with a length given up front. |
 
-These rows were checked against the bumpalo 3.21 source and the bump-scope
-2.4 and dyn-stack 0.13 documentation. Those crates are more flexible and far
-more mature. Use `ordstack` when you want the discipline checked at compile
+The other rows describe those crates as their source and documentation
+stood at the time of writing; check their current documentation before
+relying on them. Those crates are more flexible and far more mature. Use `ordstack` when you want the discipline checked at compile
 time.
 
 ## Status

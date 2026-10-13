@@ -10,6 +10,7 @@ step() { printf '\n== %s ==\n' "$*"; }
 
 step "format";                  cargo fmt --all --check
 step "clippy";                  cargo clippy --workspace --all-targets -- -D warnings
+step "unsafe table is current"; scripts/check-unsafe-table.sh
 step "tests (stable, debug)";   cargo test --workspace
 step "tests (stable, release)"; cargo test --workspace --release
 step "ui twins are current"

@@ -53,7 +53,7 @@
 //! or allocate. Holding `&mut` to a growable container is the proof that it
 //! is the top block.
 //!
-//! ```compile_fail
+//! ```compile_fail,E0499
 //! use ordstack::{SVec, Stack};
 //! let mut st = Stack::new();
 //! let mut f = st.frame();
@@ -102,7 +102,9 @@
 //!
 //! Allocating methods panic, with a message starting `ordstack: `, when the
 //! reservation is used up, a size overflows, or a value needs alignment
-//! above 4096. [`Stack::try_with_reserve`], [`Frame::try_alloc`],
+//! above 4096. Creating a stack panics when the requested reservation is too
+//! large or the operating system refuses the mapping.
+//! [`Stack::try_with_reserve`], [`Frame::try_alloc`],
 //! [`SVec::try_push`], [`SVec::try_reserve`] and [`SString::try_reserve`]
 //! return an [`AllocError`] instead.
 //!
@@ -190,7 +192,7 @@
 //! - Two containers that grow in alternation need two stacks.
 //! - Lifetime parameters spread through signatures.
 //! - Frozen blocks are not freed individually.
-//! - Nothing here is `Send` or `Sync`.
+//! - No stack, frame, container or handle is `Send` or `Sync`.
 //! - Unix only in this release; alignment above 4096 is not supported.
 //!
 //! # Soundness
@@ -205,7 +207,9 @@
 #![warn(missing_docs)]
 
 #[cfg(not(any(unix, miri)))]
-compile_error!("ordstack 0.1 supports Unix targets only (Linux and macOS are tested)");
+compile_error!(
+    "ordstack 0.1 supports Unix targets only (Linux is tested; macOS is intended to work but is untested)"
+);
 
 mod boxed;
 mod debug;

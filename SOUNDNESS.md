@@ -23,7 +23,7 @@ speed or memory use, and the crate does not free frozen blocks one by one.
   end, or the frame's `end` while it has no buffer. A vector of a zero-size
   type never has a buffer.
 - A **frozen block** is the memory behind an `SBox`, `SSlice`, `SStr`,
-  `SFixedVec` or `slice::IntoIter`. It carries the brand `'f` of the frame
+  `SFixedVec` or `iter::IntoIter`. It carries the brand `'f` of the frame
   that allocated it.
 - An object's **end** is `0` for the stack, `F.end` for a frame, and as
   above for a container.
@@ -128,8 +128,9 @@ then either bumps a fresh buffer (no buffer yet) or extends the existing one.
 After the reset the buffer ends exactly at `top`, so extending it overlaps
 nothing. `Stack::try_extend` checks this with `assert_eq!(old_end, top)` in
 every build, debug and release; if the argument here is right the assertion
-never fires. It is the only place the library compares a block against `top`,
-and it guards against a bug in this crate rather than choosing between a
+never fires. Apart from the lazy reset, which can only lower `top`, it is
+the only place in a release build where the library compares a block's end
+against `top`, and it guards against a bug in this crate rather than choosing between a
 fast and a slow path: there is no path that moves a buffer.
 
 ## What a failed allocation leaves behind
@@ -173,9 +174,10 @@ bumped the same way while the vector holds the frame exclusively.
 `Stack::trim` and `Frame::trim_above` discard pages (`madvise`) only at or
 above the offset they have just reset `top` to, rounded up to a page
 boundary, so only unreachable memory loses its contents. The range stays
-mapped. Memory handed out again later is written before it is read: every
-allocator initialises its block before returning a handle, and containers
-read only the first `len` slots.
+mapped. Memory handed out again later is written before it is read: the
+`Frame::alloc*` methods fill their block before returning a handle, and
+`SVec` and `SFixedVec`, whose buffers start uninitialised, read only the
+first `len` slots, which they have written.
 
 ## Hazards
 
@@ -203,10 +205,15 @@ region, and the stack cannot be dropped while anything borrows it
   frame while the element is still read). The stored block is leaked, not
   dangling. Without `ManuallyDrop` the store is rejected outright
   (`tests/ui/fail/11_*`).
+- `SBox::leak(g.alloc(vec))`, with the vector moved into a box on some other
+  frame `g` and the box leaked, is another way to hold an `SVec` whose
+  destructor never runs. The same argument covers it: the vector is still a
+  value that must be borrowed to be used, and the frame it holds stays
+  borrowed for as long as it is reachable.
 
 ### H2. Drop check
 
-`SBox`, `SSlice`, `SFixedVec`, `SVec` and `slice::IntoIter` implement `Drop`
+`SBox`, `SSlice`, `SFixedVec`, `SVec` and `iter::IntoIter` implement `Drop`
 without `#[may_dangle]`. (`SStr` and `SString` wrap an `SSlice<u8>` and an
 `SVec<u8>`.) The compiler therefore requires every lifetime in `T`, and the
 brand, to be alive when the handle is dropped. A destructor of `T` that
@@ -224,9 +231,10 @@ and the comparison, hashing and formatting impls that delegate to the
 elements.
 
 Re-entrancy: in every one of these the container or frame being operated on
-is mutably borrowed by the running method, and a container's frame is held
-by the container. So the user code cannot name the object in its
-intermediate state, nor allocate from its frame. What it can observe is only
+is borrowed, or owned, by the running method (the comparison, hashing and
+formatting impls take `&self`; destructors own the value), and a
+container's frame is held by the container. So the user code cannot name
+the object in its intermediate state, nor allocate from its frame. What it can observe is only
 what it is passed.
 
 | Site | State when user code runs | On panic |
@@ -322,7 +330,7 @@ impl` of either (`tests/ui/fail/13_*`, `14_*`).
 In builds with `debug_assertions` it keeps a thread-local table of regions
 and their `top`, and handles assert on access that their block lies below
 `top`. A thread-local table is correct because a stack cannot leave its
-thread (H8). Release builds compile it to nothing. `slice::IntoIter` does
+thread (H8). Release builds compile it to nothing. `iter::IntoIter` does
 not consult it.
 
 ### H10. Internal contracts that are not `unsafe fn`
@@ -466,9 +474,10 @@ crates/ordstack/src/*.rs`), then the trait impls. "Resets" means
 
 ## Every `unsafe` block
 
-`grep -n "unsafe {" crates/ordstack/src/*.rs` finds 62 blocks: 59 in library
-code and 3 in the unit tests of `region.rs`. There is one row for each,
-in file order. "Handle contract" means the safety contract of the
+`grep -o "unsafe {" crates/ordstack/src/*.rs` finds 62 blocks: 59 in library
+code and 3 in the unit tests of `region.rs`. There is one numbered row for
+each, in file order; `scripts/check-unsafe-table.sh`, run by
+`scripts/check.sh`, fails when the two counts differ. "Handle contract" means the safety contract of the
 constructor that built the handle (`SBox::from_raw`,
 `SSlice::from_raw_parts`): the block is allocated and unaliased for the
 brand and holds initialised values, or the pointer is dangling and aligned
@@ -574,15 +583,17 @@ is meant for a large machine.
 - **AddressSanitizer** runs the integration and unit tests (not the
   doctests) with a sanitised standard library.
 - **Shadow-model property test.** `tests/common/model.rs` is an interpreter
-  with 24 opcodes over a vector of drop-tracked values: push, pop, truncate,
-  insert, remove, swap_remove, retain, clear, extend, reserve,
-  shrink_to_fit, descend through `split_above` (to depth 6), restart, freeze,
+  whose 24 byte values (`byte % 24`) select 16 distinct operations on a
+  vector of drop-tracked values (nine of the values are push): push, pop,
+  truncate, insert, remove, swap_remove, retain, clear, extend, reserve,
+  shrink_to_fit, descend through `split_above` (to depth 6), leave the level
+  (at depth 0: drop the vector and start a fresh one), freeze,
   `freeze_into` through a second stack, and sub-frame scopes with
   `reset_above`. After every operation the contents are compared with a
   `Vec` model, frozen blocks are re-read after later allocations, and at the
-  end every value must
-  have been dropped exactly once in the expected order. `tests/model.rs`
-  runs it on 2000 random scripts of up to 600 bytes (16 under Miri) and on
+  end every value must have been dropped exactly once in the expected
+  order. `tests/model.rs`
+  runs it on 2000 random scripts of 0 to 599 bytes (16 scripts under Miri) and on
   fixed scripts.
 - **Fuzz target.** `fuzz/fuzz_targets/model.rs` drives the same interpreter
   from bytes. The interpreter reads at most 4096 bytes of input and the

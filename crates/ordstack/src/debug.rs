@@ -78,8 +78,8 @@ mod tests {
     fn live_block_passes() {
         register(0x10_0000, 4096);
         set_top(0x10_0000, 64);
-        check_live(0x10_0000 as *const u8, 64);
-        check_live(0x10_0020 as *const u8, 0);
+        check_live(core::ptr::without_provenance(0x10_0000), 64);
+        check_live(core::ptr::without_provenance(0x10_0020), 0);
         unregister(0x10_0000);
     }
 
@@ -88,6 +88,6 @@ mod tests {
     fn block_above_top_panics() {
         register(0x20_0000, 4096);
         set_top(0x20_0000, 16);
-        check_live(0x20_0008 as *const u8, 16);
+        check_live(core::ptr::without_provenance(0x20_0008), 16);
     }
 }
