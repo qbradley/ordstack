@@ -268,8 +268,9 @@ with `kind()` returning `Exhausted`, `CapacityOverflow`, `AlignTooLarge` or
 - Every infallible allocating method panics on any of these. The fallible
   counterparts in 0.1 are `try_with_reserve`, `try_alloc`, `try_push` and
   `try_reserve`; reserving first makes any later push infallible.
-- A failed allocation changes nothing: `top`, the container's length and its
-  capacity are as before.
+- A failed allocation changes no object: lengths, capacities, pointers and
+  frame ends are as before. `top` may already have been lowered by the lazy
+  reset that precedes the step that can fail.
 - All size arithmetic is checked.
 
 ## 5. Memory

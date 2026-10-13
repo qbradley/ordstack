@@ -13,9 +13,10 @@ pub enum AllocErrorKind {
     /// a reservation requested of
     /// [`Stack::with_reserve`](crate::Stack::with_reserve) cannot be
     /// represented (more than `isize::MAX` minus a page, after rounding up
-    /// to whole pages). A size that fits in `usize` but is larger than the
-    /// stack's reservation, including one above `isize::MAX`, reports
-    /// [`Exhausted`](Self::Exhausted) instead.
+    /// to whole pages). A request whose end offset still fits in `usize` but
+    /// lies beyond the stack's reservation reports
+    /// [`Exhausted`](Self::Exhausted) instead, even when its size is above
+    /// `isize::MAX`.
     CapacityOverflow,
     /// The requested alignment is above 4096.
     AlignTooLarge,

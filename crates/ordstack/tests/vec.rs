@@ -457,6 +457,22 @@ fn retain_panicking_drop_keeps_every_element_once() {
 /// `CapacityOverflow` and `Exhausted` mean, the capacity of a zero-size
 /// vector, and when a frame's lower object reclaims.
 #[test]
+fn offset_plus_size_overflow_is_capacity_overflow() {
+    let mut st = Stack::with_reserve(4096);
+    let mut f = st.frame();
+    let _keep = f.alloc(1u64);
+    let mut v = SVec::<u8>::new_in(&mut f);
+    assert_eq!(
+        v.try_reserve(usize::MAX - 4).unwrap_err().kind(),
+        AllocErrorKind::CapacityOverflow
+    );
+    assert_eq!(
+        v.try_reserve(isize::MAX as usize + 1).unwrap_err().kind(),
+        AllocErrorKind::Exhausted
+    );
+}
+
+#[test]
 fn documented_error_kinds_capacity_and_reclamation() {
     // A size above `isize::MAX` that does not overflow `usize` is Exhausted;
     // an overflowing size computation is CapacityOverflow.

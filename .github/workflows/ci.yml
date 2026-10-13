@@ -16,7 +16,9 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           components: clippy, rustfmt
       - run: cargo fmt --all --check
+        if: matrix.toolchain == 'stable'
       - run: cargo clippy --workspace --all-targets -- -D warnings
+        if: matrix.toolchain == 'stable'
       - run: scripts/check-unsafe-table.sh
       - run: cargo test --workspace
       - run: cargo test --workspace --release

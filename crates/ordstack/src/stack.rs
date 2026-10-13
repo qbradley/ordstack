@@ -29,8 +29,13 @@ pub struct Stack {
 }
 
 impl Stack {
-    /// Reserves [`DEFAULT_RESERVE`] bytes of address space. Pages are
-    /// committed by the kernel when first touched.
+    /// Reserves [`DEFAULT_RESERVE`] bytes of address space (4 GiB on
+    /// 64-bit targets). Pages are committed by the kernel when first
+    /// touched.
+    ///
+    /// Under Miri the reservation is an ordinary heap allocation of the
+    /// full size, so use [`with_reserve`](Self::with_reserve) with a small
+    /// size in code that is tested there.
     ///
     /// # Panics
     /// If the operating system refuses the mapping.

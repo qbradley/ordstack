@@ -263,16 +263,26 @@ only at or above `frame.end`:
 - `trim_above` calls `reset_to(end)` and `release_above(end)`; the
   `release_pages` helper rounds the start *up* to a page boundary, so only
   pages that lie entirely at or above `end` are discarded;
-- `end_offset` only reads.
+- `end_offset` only reads;
+- building an `SVec`, `SString` or `SFixedVec` on the frame goes through the
+  same reset and bump; `freeze`, `into_slice` and `freeze_into` (with the
+  frame as destination) only raise `end`;
+- `mem::swap`, `mem::replace` and `Option::take` on the frame value move the
+  stack reference and `end` together, so each frame still resets only to its
+  own `end` on its own stack.
 
-This follows from `frame.rs`, `stack.rs` and `region.rs`. A destructor
+This follows from `frame.rs`, `stack.rs`, `vec.rs` and `region.rs`. (`SStr`
+is listed for completeness; it holds bytes and runs no user code.) A destructor
 that is itself running inside a sub-frame's handle can reach only that
 sub-frame (its parent is mutably borrowed by it, and a `RefCell` guard on
 the parent stays alive as long as the sub-frame does). The frozen block being
 destroyed is not read after its destructor starts, and the owner has already
 lowered its count (see the table), so a re-entrant allocation cannot observe
-or free it. `tests/reentrant.rs` runs these cases, including under Miri
-with both borrow models.
+or free it. `tests/reentrant.rs` runs the `alloc`, `sub`, `reset_above`
+and `trim_above` cases, including under Miri with both borrow models. The
+remaining operations, and the `RefCell` guard on a parent frame, were
+exercised by the second review round (`docs/reviews/DISPOSITION.md`) and
+are not in the test suite.
 
 (c) The comparison, hashing and formatting impls take `&self` and delegate
 to initialised shared references. They can run arbitrary code, including
@@ -564,7 +574,7 @@ follow the table. There is no `unsafe impl` and no `unsafe trait`.
 | 29 | `fixed.rs` | `Deref::deref` | `slice::from_raw_parts` | first `len` values initialised; block valid for the brand |
 | 30 | `fixed.rs` | `DerefMut::deref_mut` | `slice::from_raw_parts_mut` | as above; `&mut self` is unique |
 | 31 | `fixed.rs` | `Drop::drop` | `drop_back_to_front(ptr, len)` | owns `len` initialised values; `self.len` was set to 0 first |
-| 32 | `region.rs` | `Region::release_pages` | `base.add(start)`, `os::discard` | `start < len` was checked and `start` is a multiple of the page size, and the base is aligned to 4096 by the `assert_eq!` in `Region::reserve`, so the range is inside the mapping and page aligned; that nothing relies on the contents is the callers' contract (H10, `release_above`) |
+| 32 | `region.rs` | `Region::release_pages` | `base.add(start)`, `os::discard` | `start < len` was checked, so the range is inside the mapping; `start` is a multiple of the page size and the base is page aligned because `mmap` returned it (a misaligned address would make `madvise` fail and discard nothing); that nothing relies on the contents is the callers' contract (H10, `release_above`) |
 | 33 | `region.rs` | `Drop::drop` for `Region` | `os::unmap(base, len)` | `len > 0`, and `base`/`len` are what `os::map` returned; `Region` is not `Clone` |
 | 34 | `region.rs` | `os::page_size` (Unix) | `libc::sysconf` | no preconditions |
 | 35 | `region.rs` | `os::map` (Unix) | `libc::mmap`, anonymous, private, kernel-chosen address | touches no existing memory; failure is checked |

@@ -90,7 +90,10 @@ Tests named below are in `crates/ordstack/tests/`.
   `usize` arithmetic overflow (`checked_mul`, `checked_add`) and from
   `Region::reserve` for reservations beyond `isize::MAX` minus a page. A size
   that fits in `usize` but exceeds the reservation is `Exhausted`.
-- **Disposition:** doc in `error.rs` reworded to say exactly that.
+- **Disposition:** doc in `error.rs` reworded to say that. Round 2 found the
+  rewording still too broad (a request whose offset plus size overflows
+  `usize` is `CapacityOverflow` even when the size alone fits); reworded
+  again and a `top > 0` case added to the test.
 - **Test added:** `vec.rs::documented_error_kinds_capacity_and_reclamation`.
 
 ### "Room for exactly `cap` elements" for a zero-size `T`
@@ -115,3 +118,39 @@ Tests named below are in `crates/ordstack/tests/`.
 - **Finding:** Codex repeated that the blanket covariance statement should say
   H4's two invariant cases.
 - **Disposition:** duplicate of Fable D2; fixed there.
+
+## Round 2 (scoped, Fable) and final whole-branch review
+
+Round 2 reviewed the fix commit `f619dbf` only. No soundness finding: 12
+re-entrancy programs covering 14 frame operations ran clean natively and
+under Miri with both borrow models. The report was returned in conversation
+and is summarised here rather than saved verbatim.
+
+### Page alignment attributed to the 4096 assert
+- **Finding:** the `release_pages` SAFETY comment and SOUNDNESS row 32 derived
+  page alignment of the discard start from the 4096-alignment assert; with
+  larger pages it comes from `mmap`.
+- **Reproduced:** yes, by reading. **Disposition:** both sentences corrected.
+- **Test added:** none (comment only).
+
+### H3(b) argued for four of about ten frame operations
+- **Finding:** the universal claim was true but argued only for `alloc`,
+  `sub`, `reset_above`, `trim_above`; the `RefCell`-guard sentence is not
+  covered by `tests/reentrant.rs`.
+- **Reproduced:** yes. **Disposition:** argument extended to container
+  construction, freezing and frame moves; SOUNDNESS now says which cases the
+  suite runs and which only the review ran.
+- **Test added:** none. Adding the reviewer's remaining programs to the suite
+  is open.
+
+### Final whole-branch review
+- Spec section 4.7 still said a failed allocation leaves `top` unchanged:
+  amended to match the code and docs.
+- CI ran fmt and clippy on 1.85, never exercised: restricted to stable.
+- `Stack::new` now documents its reservation size and the Miri caveat;
+  CHANGELOG lists the API additions beyond the design document.
+- Left for release preparation: `repository` metadata, licence files and
+  `SOUNDNESS.md` inside the package, the README doctest path, compile-fail
+  cases for moving `Frame`/`SVec`/`SBox` to a thread, page-size-independent
+  test sizes, boundary unit tests for `try_bump`/`try_extend`, an
+  `SFixedVec` zero-capacity test, re-verifying the README comparison table.

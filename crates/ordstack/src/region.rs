@@ -56,8 +56,10 @@ impl Region {
         if start >= self.len {
             return;
         }
-        // SAFETY: `start < len`, so the range lies inside our mapping, and
-        // `start` is page aligned because the base is (asserted in `reserve`).
+        // SAFETY: `start < len`, so the range lies inside our mapping.
+        // `start` is a multiple of the page size and the base is page
+        // aligned because `mmap` returned it; were it not, `madvise` would
+        // fail and discard nothing.
         unsafe { os::discard(self.base.add(start), self.len - start) };
     }
 }
