@@ -7,10 +7,15 @@
 #[cfg(not(any(unix, miri)))]
 compile_error!("ordstack 0.1 supports Unix targets only (Linux and macOS are tested)");
 
+mod boxed;
 mod debug;
 mod error;
+mod frame;
+mod macros;
 mod region;
 mod stack;
 
+pub use boxed::SBox;
 pub use error::{AllocError, AllocErrorKind};
+pub use frame::Frame;
 pub use stack::{DEFAULT_RESERVE, Stack};

@@ -7,6 +7,7 @@ use core::ptr::NonNull;
 
 use crate::debug;
 use crate::error::{AllocError, AllocErrorKind, fail};
+use crate::frame::Frame;
 use crate::region::{MAX_ALIGN, Region};
 
 /// Address space reserved by [`Stack::new`].
@@ -54,6 +55,13 @@ impl Stack {
             top: Cell::new(0),
             high: Cell::new(0),
         })
+    }
+
+    /// Reclaims everything and returns the cursor for the empty stack.
+    /// Taking `&mut self` proves that nothing on the stack is still alive.
+    pub fn frame(&mut self) -> Frame<'_> {
+        self.reset_to(0);
+        Frame { st: self, end: 0 }
     }
 
     /// Reclaims everything on the stack now. Taking `&mut self` proves that

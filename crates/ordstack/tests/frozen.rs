@@ -1,0 +1,152 @@
+use ordstack::{AllocErrorKind, SBox, Stack};
+use std::cell::RefCell;
+use std::rc::Rc;
+
+/// Pushes its id to a shared log when dropped.
+struct D(u32, Rc<RefCell<Vec<u32>>>);
+impl Drop for D {
+    fn drop(&mut self) {
+        self.1.borrow_mut().push(self.0);
+    }
+}
+fn log() -> Rc<RefCell<Vec<u32>>> {
+    Rc::new(RefCell::new(Vec::new()))
+}
+
+#[test]
+fn boxes_sit_side_by_side() {
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let mut a = f.alloc(1u64);
+    let b = f.alloc(2u8);
+    let c = f.alloc(3u32);
+    *a += 10;
+    assert_eq!((*a, *b, *c), (11, 2, 3));
+    assert_eq!(f.end_offset(), 16); // 8 + 1 + 3 padding + 4
+}
+
+#[test]
+fn sub_frame_is_reclaimed_when_parent_is_used() {
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let a = f.alloc(1u64);
+    {
+        let mut s = f.sub();
+        let _x = s.alloc([0u8; 100]);
+        let mut t = s.sub();
+        let _y = t.alloc([0u8; 100]);
+    }
+    let b = f.alloc(2u64);
+    assert_eq!(f.end_offset(), 16);
+    assert_eq!((*a, *b), (1, 2));
+    drop((a, b));
+    drop(f);
+    assert_eq!(st.extent(), 16); // lazy: nothing reclaims on drop
+    st.reset();
+    assert_eq!(st.extent(), 0);
+}
+
+#[test]
+fn reset_above_and_trim_above() {
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let a = f.alloc(7u32);
+    {
+        let mut s = f.sub();
+        let _big = s.alloc([1u8; 8192]);
+    }
+    f.reset_above();
+    f.trim_above();
+    let b = f.alloc(8u32);
+    assert_eq!((*a, *b), (7, 8));
+}
+
+#[test]
+fn box_drops_its_value_once() {
+    let l = log();
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let a = f.alloc(D(1, l.clone()));
+    let b = f.alloc(D(2, l.clone()));
+    drop(a);
+    let inner = SBox::into_inner(b);
+    assert_eq!(*l.borrow(), [1]);
+    drop(inner);
+    assert_eq!(*l.borrow(), [1, 2]);
+}
+
+#[test]
+fn leak_outlives_the_handle() {
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let r: &mut u32 = SBox::leak(f.alloc(5u32));
+    let other = f.alloc(6u32);
+    *r += 1;
+    assert_eq!((*r, *other), (6, 6));
+}
+
+#[test]
+fn alloc_with_runs_before_reserving() {
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let b = f.alloc_with(|| [3u16; 4]);
+    assert_eq!(*b, [3; 4]);
+}
+
+#[test]
+fn zero_sized_and_overaligned_values() {
+    #[repr(align(64))]
+    struct A64(u8);
+    #[repr(align(8192))]
+    struct Huge(u8);
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let _odd = f.alloc(1u8);
+    let unit = f.alloc(());
+    assert_eq!(f.end_offset(), 1);
+    let a = f.alloc(A64(9));
+    assert_eq!(&*a as *const A64 as usize % 64, 0);
+    assert_eq!(a.0, 9);
+    assert_eq!(f.end_offset(), 128);
+    let e = f.try_alloc(Huge(0)).err().unwrap();
+    assert_eq!(e.kind(), AllocErrorKind::AlignTooLarge);
+    assert_eq!(f.end_offset(), 128);
+    drop(unit);
+}
+
+#[test]
+fn exhaustion_is_reported_and_changes_nothing() {
+    let mut st = Stack::with_reserve(4096);
+    if st.capacity() != 4096 {
+        return; // larger pages (e.g. 16 KiB on Apple silicon): sizes below assume 4 KiB
+    }
+    let mut f = st.frame();
+    let _a = f.alloc([0u8; 4000]);
+    let e = f.try_alloc([0u8; 200]).err().unwrap();
+    assert_eq!(e.kind(), AllocErrorKind::Exhausted);
+    assert_eq!(f.end_offset(), 4000);
+    let _b = f.alloc([0u8; 96]);
+    assert_eq!(f.end_offset(), 4096);
+}
+
+#[test]
+#[should_panic(expected = "ordstack: stack reservation exhausted")]
+fn alloc_panics_when_exhausted() {
+    let mut st = Stack::with_reserve(0);
+    let mut f = st.frame();
+    let _ = f.alloc(1u8);
+}
+
+#[test]
+fn box_forwards_common_traits() {
+    use std::collections::HashSet;
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let a = f.alloc(3u32);
+    let b = f.alloc(4u32);
+    assert!(a < b && a != b);
+    assert_eq!(format!("{a:?}"), "3");
+    let mut set = HashSet::new();
+    set.insert(a);
+    assert!(set.contains(&3u32));
+}
