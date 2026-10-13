@@ -49,7 +49,8 @@ impl<'v, 'f, T> SVec<'v, 'f, T> {
     /// An empty vector with room for exactly `cap` elements.
     ///
     /// # Panics
-    /// If the stack is exhausted.
+    /// If the stack is exhausted, the capacity overflows, or a non-zero-size
+    /// `T` has alignment above 4096.
     pub fn with_capacity_in(cap: usize, frame: &'v mut Frame<'f>) -> SVec<'v, 'f, T> {
         let mut v = SVec::new_in(frame);
         if cap > v.cap {
@@ -99,7 +100,7 @@ impl<'v, 'f, T> SVec<'v, 'f, T> {
     }
 
     /// Sets the capacity to `new_cap > self.cap`. Never moves the buffer.
-    /// On failure nothing changes.
+    /// On failure the vector is unchanged.
     fn try_grow_to(&mut self, new_cap: usize) -> Result<(), AllocError> {
         debug_assert!(!Self::ZST && new_cap > self.cap);
         let st = self.frame.st;
@@ -151,7 +152,8 @@ impl<'v, 'f, T> SVec<'v, 'f, T> {
     /// Appends `value`.
     ///
     /// # Panics
-    /// If the stack is exhausted.
+    /// If the stack is exhausted, the capacity overflows, or a non-zero-size
+    /// `T` has alignment above 4096.
     pub fn push(&mut self, value: T) {
         if let Err((_, e)) = self.try_push(value) {
             fail(e);
@@ -187,7 +189,8 @@ impl<'v, 'f, T> SVec<'v, 'f, T> {
     /// Appends a copy of every element of `src`.
     ///
     /// # Panics
-    /// If the stack is exhausted.
+    /// If the stack is exhausted, the capacity overflows, or a non-zero-size
+    /// `T` has alignment above 4096.
     pub fn extend_from_slice(&mut self, src: &[T])
     where
         T: Copy,
@@ -200,6 +203,152 @@ impl<'v, 'f, T> SVec<'v, 'f, T> {
             core::ptr::copy_nonoverlapping(src.as_ptr(), self.ptr.as_ptr().add(self.len), src.len())
         };
         self.len += src.len();
+    }
+
+    /// Inserts `value` at `index`, shifting later elements up.
+    ///
+    /// # Panics
+    /// If `index > len`, if the stack is exhausted, the capacity overflows,
+    /// or a non-zero-size `T` has alignment above 4096.
+    pub fn insert(&mut self, index: usize, value: T) {
+        let len = self.len;
+        assert!(
+            index <= len,
+            "ordstack: insertion index (is {index}) should be <= len (is {len})"
+        );
+        self.reserve(1);
+        self.check();
+        // SAFETY: capacity is at least `len + 1`. The tail `[index, len)` is
+        // moved up by one, then the freed slot is written.
+        unsafe {
+            let p = self.ptr.as_ptr().add(index);
+            core::ptr::copy(p, p.add(1), len - index);
+            p.write(value);
+        }
+        self.len = len + 1;
+    }
+
+    /// Removes and returns the element at `index`, shifting later elements
+    /// down.
+    ///
+    /// # Panics
+    /// If `index >= len`.
+    pub fn remove(&mut self, index: usize) -> T {
+        let len = self.len;
+        assert!(
+            index < len,
+            "ordstack: removal index (is {index}) should be < len (is {len})"
+        );
+        self.check();
+        // SAFETY: `index < len`. The value is read out, then the tail is
+        // moved down over its slot.
+        unsafe {
+            let p = self.ptr.as_ptr().add(index);
+            let value = p.read();
+            core::ptr::copy(p.add(1), p, len - index - 1);
+            self.len = len - 1;
+            value
+        }
+    }
+
+    /// Removes and returns the element at `index`, replacing it with the
+    /// last element.
+    ///
+    /// # Panics
+    /// If `index >= len`.
+    pub fn swap_remove(&mut self, index: usize) -> T {
+        let len = self.len;
+        assert!(
+            index < len,
+            "ordstack: swap_remove index (is {index}) should be < len (is {len})"
+        );
+        self.check();
+        // SAFETY: `index < len`. The value is read out and the last element
+        // is moved into its slot (a no-op move when they are the same slot).
+        unsafe {
+            let base = self.ptr.as_ptr();
+            let value = base.add(index).read();
+            core::ptr::copy(base.add(len - 1), base.add(index), 1);
+            self.len = len - 1;
+            value
+        }
+    }
+
+    /// Shortens the vector to `len` elements, dropping the rest back to
+    /// front. Does nothing if `len` is not below the current length. If a
+    /// destructor panics the remaining elements are still dropped.
+    pub fn truncate(&mut self, len: usize) {
+        if len >= self.len {
+            return;
+        }
+        self.check();
+        let n = self.len - len;
+        self.len = len;
+        // SAFETY: `[len, len + n)` were initialised and are now outside the
+        // vector's length.
+        unsafe { drop_back_to_front(self.ptr.as_ptr().add(len), n) };
+    }
+
+    /// Removes every element, dropping them back to front. Keeps the
+    /// capacity.
+    pub fn clear(&mut self) {
+        self.truncate(0);
+    }
+
+    /// Keeps the elements for which `keep` returns `true`, preserving their
+    /// order. Removed elements are dropped front to back, as they are
+    /// visited. If `keep` or a destructor panics, every element is still
+    /// owned by the vector or dropped exactly once.
+    pub fn retain(&mut self, mut keep: impl FnMut(&T) -> bool) {
+        /// On exit, including by panic, closes the gap and restores `len`.
+        struct Gap<'a, 'v, 'f, T> {
+            v: &'a mut SVec<'v, 'f, T>,
+            /// Elements `[0, write)` are kept; `[read, orig)` are unvisited.
+            read: usize,
+            write: usize,
+            orig: usize,
+        }
+        impl<T> Drop for Gap<'_, '_, '_, T> {
+            fn drop(&mut self) {
+                let rest = self.orig - self.read;
+                // SAFETY: `[read, orig)` are initialised and `[write, read)`
+                // holds no values, so the rest moves down over the gap.
+                unsafe {
+                    let p = self.v.ptr.as_ptr();
+                    core::ptr::copy(p.add(self.read), p.add(self.write), rest);
+                }
+                self.v.len = self.write + rest;
+            }
+        }
+
+        self.check();
+        let orig = core::mem::replace(&mut self.len, 0);
+        let mut g = Gap {
+            v: self,
+            read: 0,
+            write: 0,
+            orig,
+        };
+        while g.read < g.orig {
+            let base = g.v.ptr.as_ptr();
+            // SAFETY: `read < orig`, so the slot holds an unvisited value.
+            let cur = unsafe { base.add(g.read) };
+            // If `keep` panics the value is still in the unvisited range.
+            // SAFETY: as above; the reference ends before the value moves.
+            let kept = keep(unsafe { &*cur });
+            g.read += 1;
+            if kept {
+                // SAFETY: slot `write <= read - 1` holds no value (or is
+                // `cur` itself); the value moves there.
+                unsafe { core::ptr::copy(cur, base.add(g.write), 1) };
+                g.write += 1;
+            } else {
+                // `read` is already past the value, so a panicking
+                // destructor cannot cause a second drop.
+                // SAFETY: the value is initialised and never used again.
+                unsafe { core::ptr::drop_in_place(cur) };
+            }
+        }
     }
 
     /// Gives unused capacity back to the stack. Never moves the buffer.
@@ -333,3 +482,5 @@ impl<T> Drop for SVec<'_, '_, T> {
         unsafe { drop_back_to_front(self.ptr.as_ptr(), len) };
     }
 }
+
+crate::macros::deref_traits!(['v, 'f, T] SVec<'v, 'f, T>, [T]);

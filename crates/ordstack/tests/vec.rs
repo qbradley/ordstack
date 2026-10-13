@@ -290,3 +290,165 @@ fn zst_elements() {
     drop(s);
     assert_eq!(Z_DROPS.load(Ordering::Relaxed), n + 1);
 }
+
+#[test]
+fn insert_remove_swap_remove() {
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let mut v: SVec<u32> = SVec::new_in(&mut f);
+    v.extend([1, 2, 3, 4]);
+    v.insert(0, 0);
+    v.insert(5, 5);
+    v.insert(3, 99);
+    assert_eq!(&*v, [0, 1, 2, 99, 3, 4, 5]);
+    assert_eq!(v.remove(3), 99);
+    assert_eq!(v.remove(0), 0);
+    assert_eq!(v.swap_remove(0), 1);
+    assert_eq!(&*v, [5, 2, 3, 4]);
+    assert_eq!(v.swap_remove(3), 4);
+    assert_eq!(&*v, [5, 2, 3]);
+}
+
+#[test]
+#[should_panic(expected = "ordstack: insertion index (is 2) should be <= len (is 1)")]
+fn insert_out_of_bounds_panics() {
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let mut v: SVec<u32> = SVec::new_in(&mut f);
+    v.push(1);
+    v.insert(2, 9);
+}
+
+#[test]
+#[should_panic(expected = "ordstack: removal index (is 1) should be < len (is 1)")]
+fn remove_out_of_bounds_panics() {
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let mut v: SVec<u32> = SVec::new_in(&mut f);
+    v.push(1);
+    v.remove(1);
+}
+
+#[test]
+fn truncate_and_clear_drop_back_to_front() {
+    let l = log();
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let mut v = SVec::new_in(&mut f);
+    for i in 0..6 {
+        v.push(D(i, l.clone()));
+    }
+    v.truncate(10);
+    v.truncate(4);
+    assert_eq!(*l.borrow(), [5, 4]);
+    v.clear();
+    assert_eq!(*l.borrow(), [5, 4, 3, 2, 1, 0]);
+    assert!(v.is_empty());
+    assert_eq!(v.capacity(), 8);
+}
+
+#[test]
+fn retain_keeps_order() {
+    let l = log();
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let mut v = SVec::new_in(&mut f);
+    for i in 0..8 {
+        v.push(D(i, l.clone()));
+    }
+    v.retain(|d| d.0 % 3 != 0);
+    assert_eq!(*l.borrow(), [0, 3, 6]);
+    assert!(v.iter().map(|d| d.0).eq([1, 2, 4, 5, 7]));
+}
+
+#[test]
+fn vec_forwards_common_traits() {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut a_st = Stack::with_reserve(1 << 16);
+    let mut b_st = Stack::with_reserve(1 << 16);
+    let (mut af, mut bf) = (a_st.frame(), b_st.frame());
+    let mut a: SVec<u8> = SVec::new_in(&mut af);
+    let mut b: SVec<u8> = SVec::new_in(&mut bf);
+    a.extend([1, 2]);
+    b.extend([1, 3]);
+    assert!(a < b && a != b);
+    assert_eq!(format!("{a:?}"), "[1, 2]");
+    let (mut h1, mut h2) = (DefaultHasher::new(), DefaultHasher::new());
+    a.hash(&mut h1);
+    [1u8, 2][..].hash(&mut h2);
+    assert_eq!(h1.finish(), h2.finish());
+}
+
+/// Drops log its id; dropping the value with id `bomb` panics (after logging).
+struct B(u32, u32, Rc<RefCell<Vec<u32>>>);
+impl Drop for B {
+    fn drop(&mut self) {
+        self.2.borrow_mut().push(self.0);
+        if self.0 == self.1 && !std::thread::panicking() {
+            panic!("boom");
+        }
+    }
+}
+
+#[test]
+fn truncate_panicking_drop_still_drops_everything_once() {
+    let l = log();
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let mut v = SVec::new_in(&mut f);
+    for i in 0..6 {
+        v.push(B(i, 3, l.clone()));
+    }
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| v.truncate(1)));
+    assert!(r.is_err());
+    assert_eq!(*l.borrow(), [5, 4, 3, 2, 1]);
+    assert_eq!(v.len(), 1);
+    drop(v);
+    assert_eq!(*l.borrow(), [5, 4, 3, 2, 1, 0]);
+}
+
+#[test]
+fn retain_panicking_predicate_keeps_every_element_once() {
+    let l = log();
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let mut v = SVec::new_in(&mut f);
+    for i in 0..8 {
+        v.push(B(i, u32::MAX, l.clone()));
+    }
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        v.retain(|b| {
+            if b.0 == 5 {
+                panic!("pred");
+            }
+            b.0 % 2 == 0
+        })
+    }));
+    assert!(r.is_err());
+    assert_eq!(*l.borrow(), [1, 3]);
+    assert!(v.iter().map(|b| b.0).eq([0, 2, 4, 5, 6, 7]));
+    drop(v);
+    let mut all = l.borrow().clone();
+    all.sort();
+    assert_eq!(all, [0, 1, 2, 3, 4, 5, 6, 7]);
+}
+
+#[test]
+fn retain_panicking_drop_keeps_every_element_once() {
+    let l = log();
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let mut v = SVec::new_in(&mut f);
+    for i in 0..8 {
+        v.push(B(i, 3, l.clone()));
+    }
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| v.retain(|b| b.0 % 2 == 0)));
+    assert!(r.is_err());
+    assert_eq!(*l.borrow(), [1, 3]);
+    assert!(v.iter().map(|b| b.0).eq([0, 2, 4, 5, 6, 7]));
+    drop(v);
+    let mut all = l.borrow().clone();
+    all.sort();
+    assert_eq!(all, [0, 1, 2, 3, 4, 5, 6, 7]);
+}
