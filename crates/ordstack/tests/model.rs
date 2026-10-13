@@ -38,9 +38,12 @@ fn fixed_script_restart_at_depth_zero() {
 
 #[test]
 fn fixed_script_swap_remove() {
-    // push x5, swap_remove 1, swap_remove 200 (-> last-ish), on an empty
-    // vector twice, then refill.
+    // push x5, swap_remove 1, swap_remove 200 (index 0 of 4), clear, then
+    // op 16 on an empty vector, which reads no argument (so the 5 is a push),
+    // swap_remove 0, push, swap_remove 0.
     model::run(&[0, 0, 0, 0, 0, 16, 1, 16, 200, 17, 16, 5, 16, 0, 0, 16, 0]);
+    // swap_remove of the last index with length > 1: 3 % 4 == 3.
+    model::run(&[0, 0, 0, 0, 16, 3, 16, 1, 16, 0]);
 }
 
 #[test]
@@ -51,14 +54,18 @@ fn fixed_script_clear() {
 #[test]
 fn fixed_script_extend() {
     // extend by 5, 0 and 7 values, with pushes and a pop between.
-    model::run(&[18, 5, 0, 18, 0, 6, 18, 7, 18, 13, 18, 255]);
+    model::run(&[
+        18, 5, 0, 18, 0, 6, 18, 7, 18, 13, 18, 255, 18, 8, 18, 11, 18, 12,
+    ]);
 }
 
 #[test]
 fn fixed_script_freeze_into() {
     // At depth 0: push x3, freeze_into, push, freeze_into twice (the second
     // from empty). Then descend, push, freeze_into at depth 1, push x2, leave.
-    model::run(&[0, 0, 0, 19, 0, 19, 19, 0, 11, 0, 19, 0, 0, 12, 0, 13]);
+    model::run(&[
+        0, 0, 0, 19, 2, 0, 19, 0, 19, 3, 0, 11, 0, 19, 1, 0, 0, 12, 0, 13,
+    ]);
 }
 
 #[test]

@@ -17,14 +17,14 @@
 //! | 10        | retain by a mask derived from `arg`                          |
 //! | 11        | descend: `split_above` and run the rest in the new frame     |
 //! | 12        | depth > 0: leave this level. Depth 0: drop the vector, start a fresh one |
-//! | 13        | freeze the vector in place, then allocate a box              |
+//! | 13        | freeze the vector in place, allocate a box, run a `sub_scope` on the level's frame |
 //! | 14        | reserve `arg` more                                           |
 //! | 15        | shrink_to_fit                                                |
-//! | 16        | swap_remove at `arg % len` (nothing if empty)                |
+//! | 16        | swap_remove at `arg % len`; the argument is read only if the vector is non-empty |
 //! | 17        | clear                                                        |
-//! | 18        | extend with `arg % 8` fresh values                           |
-//! | 19        | move the elements (reversed) into a vector on a second stack, `freeze_into` this level's frame, then allocate a box |
-//! | 20        | `split_above`, allocate `arg % 4 + 1` rounds of boxes, slices and strings in a `sub` frame, leave it, `reset_above` |
+//! | 18        | extend with `arg % 8` fresh values; if `arg & 8`, from an iterator with no exact size hint |
+//! | 19        | move the elements (reversed) into a vector on a second stack, `freeze_into` this level's frame, then allocate a box; the source vector has `arg % 4` spare slots |
+//! | 20        | `split_above`, then `arg % 4 + 1` rounds in `sub` scopes (see `sub_scope`), `reset_above`, allocate again |
 
 use ordstack::{Frame, SBox, SSlice, SVec, Stack};
 use std::cell::{Cell, RefCell};
@@ -116,6 +116,7 @@ fn level<'f, 's, 'c>(
         let mut v: SVec<'_, 'f, Tracked<'c>> = SVec::new_in(frame);
         let mut m: Vec<u32> = Vec::new();
         let mut next = Next::End;
+        let mut spare = 0;
         while let Some(op) = input.next() {
             match op % 24 {
                 0..=5 | 21..=23 => {
@@ -193,21 +194,28 @@ fn level<'f, 's, 'c>(
                     v.clear();
                 }
                 18 => {
-                    let run: Vec<Tracked<'c>> = (0..arg(input) % 8).map(|_| cx.make()).collect();
-                    m.extend(run.iter().map(|t| t.id));
-                    v.extend(run);
+                    let a = arg(input);
+                    let n = (a % 8) as u32;
+                    let first = cx.next.get();
+                    m.extend(first..first + n);
+                    let fresh = (0..n).map(|_| cx.make());
+                    if a & 8 == 0 {
+                        v.extend(fresh);
+                    } else {
+                        // No exact size hint: the lower bound is 0.
+                        v.extend(fresh.filter(|_| true));
+                    }
+                    assert_eq!(cx.next.get(), first + n);
                 }
                 19 => {
+                    spare = arg(input) % 4;
                     next = Next::FreezeViaScratch;
                     break;
                 }
                 _ => {
                     let rounds = arg(input) % 4 + 1;
                     let (elems, mut up) = v.split_above();
-                    let end = up.end_offset();
                     sub_scope(&mut up, rounds, cx);
-                    assert_eq!(up.end_offset(), end, "a sub-frame moved its parent");
-                    up.reset_above();
                     assert_eq!(ids(elems), m, "a lower vector changed under a sub-frame");
                 }
             }
@@ -222,12 +230,15 @@ fn level<'f, 's, 'c>(
             Next::Restart => {
                 cx.expect(m.iter().rev().copied());
                 drop(v);
+                sub_scope(frame, (frozen.len() + boxes.len()) % 3 + 1, cx);
+                recheck(&frozen, &boxes);
                 continue;
             }
             Next::Freeze => v.freeze(),
             Next::FreezeViaScratch => {
                 // Move the elements one by one, so the copy is reversed.
-                let mut tmp: SVec<'_, 's, Tracked<'c>> = SVec::with_capacity_in(m.len(), scratch);
+                let mut tmp: SVec<'_, 's, Tracked<'c>> =
+                    SVec::with_capacity_in(m.len() + spare, scratch);
                 while let Some(t) = v.pop() {
                     tmp.push(t);
                 }
@@ -241,12 +252,9 @@ fn level<'f, 's, 'c>(
         let t = cx.make();
         let id = t.id;
         boxes.push((frame.alloc(t), id));
-        for (s, m) in &frozen {
-            assert_eq!(ids(s), *m, "a frozen slice changed");
-        }
-        for (b, id) in &boxes {
-            assert_eq!(b.id, *id, "a frozen box changed");
-        }
+        recheck(&frozen, &boxes);
+        sub_scope(frame, (frozen.len() + boxes.len()) % 3 + 1, cx);
+        recheck(&frozen, &boxes);
     }
     for (b, id) in boxes {
         cx.expect([id]);
@@ -258,42 +266,103 @@ fn level<'f, 's, 'c>(
     }
 }
 
-/// Allocates boxes, slices and strings in a `sub` frame of `up`, checks them,
-/// and drops them in a fixed order before leaving it.
-fn sub_scope<'c>(up: &mut Frame<'_>, rounds: usize, cx: &'c Cx) {
-    let mut sub = up.sub();
-    let mut live: Vec<(SBox<'_, Tracked<'c>>, u32)> = Vec::new();
-    let mut slices: Vec<(SSlice<'_, Tracked<'c>>, Vec<u32>)> = Vec::new();
-    for r in 0..rounds {
+fn recheck<'f, 'c>(
+    frozen: &[(SSlice<'f, Tracked<'c>>, Vec<u32>)],
+    boxes: &[(SBox<'f, Tracked<'c>>, u32)],
+) {
+    for (s, m) in frozen {
+        assert_eq!(ids(s), *m, "a frozen slice changed");
+    }
+    for (b, id) in boxes {
+        assert_eq!(b.id, *id, "a frozen box changed");
+    }
+}
+
+/// A box and a frozen slice of tracked values, with their model.
+struct Blocks<'f, 'c> {
+    b: SBox<'f, Tracked<'c>>,
+    bid: u32,
+    s: SSlice<'f, Tracked<'c>>,
+    sm: Vec<u32>,
+}
+
+impl<'f, 'c> Blocks<'f, 'c> {
+    fn new(f: &mut Frame<'f>, n: usize, cx: &'c Cx) -> Blocks<'f, 'c> {
         let t = cx.make();
-        let id = t.id;
-        live.push((sub.alloc(t), id));
-        let mut w: SVec<'_, '_, Tracked<'c>> = SVec::new_in(&mut sub);
-        let mut wm = Vec::new();
-        for _ in 0..=r {
+        let bid = t.id;
+        let b = f.alloc(t);
+        let mut w: SVec<'_, 'f, Tracked<'c>> = SVec::new_in(f);
+        let mut sm = Vec::new();
+        for _ in 0..n {
             let t = cx.make();
-            wm.push(t.id);
+            sm.push(t.id);
             w.push(t);
         }
-        slices.push((w.freeze(), wm));
-        let nums = [r as u32, 7, 9];
-        assert_eq!(*sub.alloc_slice_copy(&nums), nums);
-        assert_eq!(&*sub.alloc_str("sub"), "sub");
+        Blocks {
+            b,
+            bid,
+            s: w.freeze(),
+            sm,
+        }
     }
-    for (b, id) in &live {
-        assert_eq!(b.id, *id, "a sub-frame box changed");
+
+    fn check(&self) {
+        assert_eq!(self.b.id, self.bid, "a block changed");
+        assert_eq!(ids(&self.s), self.sm, "a block slice changed");
     }
-    for (s, m) in &slices {
-        assert_eq!(ids(s), *m, "a sub-frame slice changed");
+
+    /// Drops the slice, then the box.
+    fn drop_in_order(self, cx: &Cx) {
+        cx.expect(self.sm.iter().rev().copied());
+        drop(self.s);
+        cx.expect([self.bid]);
+        drop(self.b);
     }
-    for (s, m) in slices.into_iter().rev() {
-        cx.expect(m.iter().rev().copied());
-        drop(s);
+}
+
+/// Exercises `Frame::sub` and `reset_above` on `up`, which owns blocks of its
+/// own: allocates blocks in `up`, runs `rounds` of boxes, slices, copies and
+/// strings in a `sub` frame (re-reading everything afterwards), leaves it,
+/// calls `reset_above`, allocates in `up` again, re-reads all of it, and drops
+/// what it allocated in a fixed order. `up.end_offset()` must not move during
+/// the sub-frame.
+fn sub_scope<'c>(up: &mut Frame<'_>, rounds: usize, cx: &'c Cx) {
+    let old = Blocks::new(up, rounds, cx);
+    let end = up.end_offset();
+    {
+        let mut sub = up.sub();
+        let mut live: Vec<Blocks<'_, 'c>> = Vec::new();
+        let mut copies = Vec::new();
+        let mut strs = Vec::new();
+        for r in 0..rounds {
+            live.push(Blocks::new(&mut sub, r + 1, cx));
+            let nums = [r as u32, 7, 9];
+            copies.push((sub.alloc_slice_copy(&nums), nums));
+            let text = format!("sub{r}");
+            strs.push((sub.alloc_str(&text), text));
+        }
+        old.check();
+        for l in &live {
+            l.check();
+        }
+        for (c, nums) in &copies {
+            assert_eq!(**c, *nums, "a sub-frame copy changed");
+        }
+        for (t, text) in &strs {
+            assert_eq!(&**t, text.as_str(), "a sub-frame str changed");
+        }
+        for l in live.into_iter().rev() {
+            l.drop_in_order(cx);
+        }
     }
-    for (b, id) in live.into_iter().rev() {
-        cx.expect([id]);
-        drop(b);
-    }
+    assert_eq!(up.end_offset(), end, "a sub-frame moved its parent");
+    up.reset_above();
+    let fresh = Blocks::new(up, rounds + 1, cx);
+    old.check();
+    fresh.check();
+    fresh.drop_in_order(cx);
+    old.check();
+    old.drop_in_order(cx);
 }
 
 /// Runs one script. Panics on any disagreement with the model.

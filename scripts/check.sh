@@ -12,8 +12,15 @@ step "format";                  cargo fmt --all --check
 step "clippy";                  cargo clippy --workspace --all-targets -- -D warnings
 step "tests (stable, debug)";   cargo test --workspace
 step "tests (stable, release)"; cargo test --workspace --release
+step "ui twins are current"
+scripts/gen-ui-pass.sh
+if [ -n "$(git status --porcelain -- crates/ordstack/tests/ui/pass)" ]; then
+    git status --short -- crates/ordstack/tests/ui/pass
+    git diff -- crates/ordstack/tests/ui/pass
+    echo "the committed passing twins are stale: run scripts/gen-ui-pass.sh and commit" >&2
+    exit 1
+fi
 step "tests + ui (MSRV 1.85)";  ORDSTACK_UI=1 cargo +1.85 test --workspace
-step "ui twins are current";    scripts/gen-ui-pass.sh && git diff --exit-code -- crates/ordstack/tests/ui/pass
 step "docs";                    RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 step "miri (stacked borrows)";  cargo +nightly miri test -p ordstack
 step "miri (tree borrows)";     MIRIFLAGS=-Zmiri-tree-borrows cargo +nightly miri test -p ordstack

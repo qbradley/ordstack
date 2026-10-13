@@ -29,10 +29,18 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.85"
+      - run: scripts/gen-ui-pass.sh
+      - name: ui twins are current
+        run: |
+          if [ -n "$(git status --porcelain -- crates/ordstack/tests/ui/pass)" ]; then
+            git status --short -- crates/ordstack/tests/ui/pass
+            git diff -- crates/ordstack/tests/ui/pass
+            echo "the committed passing twins are stale" >&2
+            exit 1
+          fi
       - run: cargo test -p ordstack --test ui
         env:
           ORDSTACK_UI: "1"
-      - run: scripts/gen-ui-pass.sh && git diff --exit-code -- crates/ordstack/tests/ui/pass
   miri:
     runs-on: ubuntu-latest
     strategy:
