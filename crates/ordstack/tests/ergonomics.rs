@@ -1,7 +1,7 @@
 //! The 0.2a additions: `Frame::stack`, `Frame::alloc_slice_from_iter`,
 //! `sformat!`, and `IntoIterator`.
 
-use ordstack::{SVec, Stack, sformat};
+use ordstack::{SFixedVec, SVec, Stack, sformat};
 use std::cell::RefCell;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::rc::Rc;
@@ -150,4 +150,109 @@ fn sformat_leaves_the_frame_usable_after_a_panicking_display() {
     assert_eq!(s.as_str(), "ok");
     assert_eq!(*kept, 1);
     assert_eq!(f.end_offset(), 10); // the partial string's space was reused
+}
+
+#[test]
+fn borrowed_iteration_over_every_container() {
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let mut s = f.alloc_slice_copy(&[1u32, 2, 3]);
+    for x in &mut s {
+        *x *= 2;
+    }
+    let mut sum = 0;
+    for x in &s {
+        sum += x;
+    }
+    assert_eq!(sum, 12);
+
+    let mut fx = SFixedVec::with_capacity_in(3, &mut f);
+    fx.push(1u32);
+    fx.push(2);
+    for x in &mut fx {
+        *x += 1;
+    }
+    assert_eq!((&fx).into_iter().copied().collect::<Vec<_>>(), [2, 3]);
+
+    let mut v: SVec<u32> = SVec::new_in(&mut f);
+    v.extend([5, 6]);
+    for x in &mut v {
+        *x *= 10;
+    }
+    assert_eq!((&v).into_iter().copied().collect::<Vec<_>>(), [50, 60]);
+}
+
+#[test]
+fn sfixedvec_by_value() {
+    let l = log();
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let mut fx = SFixedVec::with_capacity_in(4, &mut f);
+    for i in 0..4 {
+        fx.push(D(i, l.clone()));
+    }
+    let mut it = fx.into_iter();
+    assert_eq!(it.next().map(|d| d.0), Some(0)); // D(0) dropped here
+    drop(it);
+    assert_eq!(*l.borrow(), [0, 3, 2, 1]);
+}
+
+#[test]
+fn svec_by_value_reclaims_the_buffer_lazily() {
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let _kept = f.alloc(1u64); // 0..8
+    let mut v: SVec<u64> = SVec::new_in(&mut f);
+    v.extend(0..100);
+    let sum: u64 = v.into_iter().sum();
+    assert_eq!(sum, 4950);
+    assert_eq!(f.end_offset(), 8); // nothing was frozen
+    let b = f.alloc(7u64); // reuses the buffer's space
+    assert_eq!(f.end_offset(), 16);
+    assert_eq!(*b, 7);
+}
+
+#[test]
+fn svec_by_value_drops_the_rest_back_to_front() {
+    let l = log();
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let mut v = SVec::new_in(&mut f);
+    for i in 0..5 {
+        v.push(D(i, l.clone()));
+    }
+    let mut it = v.into_iter();
+    assert_eq!(it.len(), 5);
+    assert_eq!(it.next().map(|d| d.0), Some(0));
+    assert_eq!(it.next_back().map(|d| d.0), Some(4));
+    drop(it);
+    assert_eq!(*l.borrow(), [0, 4, 3, 2, 1]);
+}
+
+#[test]
+fn svec_by_value_empty_and_zero_size() {
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let v: SVec<u64> = SVec::new_in(&mut f);
+    assert_eq!(v.into_iter().count(), 0);
+    let mut z: SVec<()> = SVec::new_in(&mut f);
+    z.extend([(), (), ()]);
+    assert_eq!(z.into_iter().count(), 3);
+    assert_eq!(f.end_offset(), 0);
+}
+
+#[test]
+fn forgotten_svec_iterator_leaks_and_the_frame_recovers() {
+    // Plain `u32` elements: a forgotten iterator of values that own heap
+    // memory would be reported by Miri as a leak, which is not the point.
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let mut v: SVec<u32> = SVec::new_in(&mut f);
+    v.extend([1, 2, 3]);
+    let mut it = v.into_iter();
+    assert_eq!(it.next(), Some(1));
+    core::mem::forget(it);
+    let b = f.alloc(9u32); // reclaims the buffer
+    assert_eq!(*b, 9);
+    assert_eq!(f.end_offset(), 4);
 }

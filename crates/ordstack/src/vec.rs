@@ -8,7 +8,7 @@ use core::ptr::NonNull;
 use crate::debug;
 use crate::error::{AllocError, AllocErrorKind, fail};
 use crate::frame::Frame;
-use crate::slice::{SSlice, drop_back_to_front};
+use crate::slice::{IntoIter, SSlice, drop_back_to_front};
 
 const OVERFLOW: AllocError = AllocError::new(AllocErrorKind::CapacityOverflow);
 
@@ -570,3 +570,67 @@ impl<T> Drop for SVec<'_, '_, T> {
 }
 
 crate::macros::deref_traits!(['v, 'f, T] SVec<'v, 'f, T>, [T]);
+
+impl<'a, T> IntoIterator for &'a SVec<'_, '_, T> {
+    type Item = &'a T;
+    type IntoIter = core::slice::Iter<'a, T>;
+    fn into_iter(self) -> core::slice::Iter<'a, T> {
+        self.iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut SVec<'_, '_, T> {
+    type Item = &'a mut T;
+    type IntoIter = core::slice::IterMut<'a, T>;
+    fn into_iter(self) -> core::slice::IterMut<'a, T> {
+        self.iter_mut()
+    }
+}
+
+/// By-value iterator over an [`SVec`]. It keeps the vector's frame
+/// borrowed, so the buffer is not frozen: once the iterator is gone, its
+/// space is reclaimed lazily, as for a dropped vector. Elements not yet
+/// yielded are dropped back to front.
+pub struct VecIntoIter<'v, 'f, T> {
+    // Declared first, so it is dropped before the frame borrow ends.
+    inner: IntoIter<'v, T>,
+    _frame: &'v mut Frame<'f>,
+}
+
+impl<'v, 'f, T> IntoIterator for SVec<'v, 'f, T> {
+    type Item = T;
+    type IntoIter = VecIntoIter<'v, 'f, T>;
+    fn into_iter(self) -> VecIntoIter<'v, 'f, T> {
+        self.check();
+        let (frame, ptr, len, _) = self.into_parts();
+        // SAFETY: `ptr` holds `len` initialised values in the vector's buffer,
+        // which lies at or above `frame.end`. Only a reset by this frame or by
+        // an object beneath it could reclaim the buffer, and the iterator holds
+        // `frame` exclusively for `'v`, so neither can run while `inner`
+        // exists. With nothing allocated, or for a zero-size `T`, `ptr` is
+        // dangling and aligned and the block has zero size.
+        let slice = unsafe { SSlice::<'v, T>::from_raw_parts(ptr, len) };
+        VecIntoIter {
+            inner: slice.into_iter(),
+            _frame: frame,
+        }
+    }
+}
+
+impl<T> Iterator for VecIntoIter<'_, '_, T> {
+    type Item = T;
+    fn next(&mut self) -> Option<T> {
+        self.inner.next()
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
+}
+
+impl<T> DoubleEndedIterator for VecIntoIter<'_, '_, T> {
+    fn next_back(&mut self) -> Option<T> {
+        self.inner.next_back()
+    }
+}
+
+impl<T> ExactSizeIterator for VecIntoIter<'_, '_, T> {}

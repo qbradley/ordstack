@@ -238,6 +238,7 @@ pub use vec::SVec;
 /// Iterator types.
 pub mod iter {
     pub use crate::slice::IntoIter;
+    pub use crate::vec::VecIntoIter;
 }
 
 /// Runs the README's examples as doctests.

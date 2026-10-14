@@ -113,6 +113,22 @@ impl<T> Drop for SSlice<'_, T> {
 
 deref_traits!(['f, T] SSlice<'f, T>, [T]);
 
+impl<'a, T> IntoIterator for &'a SSlice<'_, T> {
+    type Item = &'a T;
+    type IntoIter = core::slice::Iter<'a, T>;
+    fn into_iter(self) -> core::slice::Iter<'a, T> {
+        self.iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut SSlice<'_, T> {
+    type Item = &'a mut T;
+    type IntoIter = core::slice::IterMut<'a, T>;
+    fn into_iter(self) -> core::slice::IterMut<'a, T> {
+        self.iter_mut()
+    }
+}
+
 /// By-value iterator over an [`SSlice`]. Elements not yet yielded are
 /// dropped back to front when the iterator is dropped.
 pub struct IntoIter<'f, T> {

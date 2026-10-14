@@ -133,3 +133,29 @@ impl<T> Drop for SFixedVec<'_, T> {
 }
 
 deref_traits!(['f, T] SFixedVec<'f, T>, [T]);
+
+impl<'a, T> IntoIterator for &'a SFixedVec<'_, T> {
+    type Item = &'a T;
+    type IntoIter = core::slice::Iter<'a, T>;
+    fn into_iter(self) -> core::slice::Iter<'a, T> {
+        self.iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut SFixedVec<'_, T> {
+    type Item = &'a mut T;
+    type IntoIter = core::slice::IterMut<'a, T>;
+    fn into_iter(self) -> core::slice::IterMut<'a, T> {
+        self.iter_mut()
+    }
+}
+
+impl<'f, T> IntoIterator for SFixedVec<'f, T> {
+    type Item = T;
+    type IntoIter = crate::slice::IntoIter<'f, T>;
+    /// Iterates the elements pushed so far; spare capacity is not reclaimed
+    /// (see [`into_slice`](Self::into_slice)).
+    fn into_iter(self) -> crate::slice::IntoIter<'f, T> {
+        self.into_slice().into_iter()
+    }
+}
