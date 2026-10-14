@@ -15,11 +15,47 @@ import re
 import subprocess
 
 WORKLOADS = {
-    "treebuild": ["orig.rs", "bin/ordstack.rs", "bin/bumpalo.rs"],
-    "serde_json_xform": ["orig.rs", "bin/ordstack.rs", "bin/bumpalo.rs"],
+    "treebuild": ["orig.rs", "bin/std_control.rs", "bin/ordstack.rs", "bin/bumpalo.rs"],
+    "serde_json_xform": ["orig.rs", "bin/std_control.rs", "bin/ordstack.rs", "bin/bumpalo.rs"],
 }
-DECL = re.compile(r"\b(?:struct|enum|fn|impl)\b\s*(?:\w+\s*)?<([^>{(]*)>")
+HEAD = re.compile(r"\b(struct|enum|fn|impl)\b")
 LT = re.compile(r"'(?:[a-z_][a-z0-9_]*)\b(?!')")
+
+
+def declared_lifetimes(text):
+    """Lifetime parameters in the generic lists of item headers, split into
+    (types, fns, impl headers). Bounds such as `D: Deserializer<'de>` are
+    not declarations and are not counted."""
+    counts = {"struct": 0, "enum": 0, "fn": 0, "impl": 0}
+    for m in HEAD.finditer(text):
+        j = m.end()
+        while j < len(text) and text[j].isspace():
+            j += 1
+        if m.group(1) != "impl":
+            k = j
+            while k < len(text) and (text[k].isalnum() or text[k] == "_"):
+                k += 1
+            if k == j:
+                continue
+            j = k
+        if j >= len(text) or text[j] != "<":
+            continue
+        depth, start, params, k = 0, j + 1, [], j
+        while k < len(text):
+            c = text[k]
+            if c == "<":
+                depth += 1
+            elif c == ">" and text[k - 1] != "-":
+                depth -= 1
+                if depth == 0:
+                    params.append(text[start:k])
+                    break
+            elif c == "," and depth == 1:
+                params.append(text[start:k])
+                start = k + 1
+            k += 1
+        counts[m.group(1)] += sum(1 for p in params if p.strip().startswith("'"))
+    return counts["struct"] + counts["enum"], counts["fn"], counts["impl"]
 
 
 def strip_bench(lines):
@@ -49,15 +85,16 @@ def stats(path):
     text = rustfmt("\n".join(lines) + "\n")
     all_lines = text.splitlines()
     code = [l.strip() for l in all_lines if l.strip() and not l.strip().startswith("//")]
-    decl = sum(len(LT.findall(m.group(1))) for m in DECL.finditer(text))
+    decl = declared_lifetimes("\n".join(code))
     tokens = len(LT.findall(" ".join(code)))
-    port = sum(1 for l in all_lines if "PORT" in l)
+    port = sum(1 for l in all_lines if re.search(r"//\s*PORT(:| \()", l))
     return {"lines": len(all_lines), "code": code, "decl": decl, "tokens": tokens, "port": port}
 
 
 def main():
     print("| workload | file | lines (rustfmt) | code lines | added / removed vs original "
-          "(code lines) | lifetime params declared | lifetime tokens | PORT comments |")
+          "(code lines) | lifetime params declared: types / fns / impl headers | "
+          "lifetime tokens | PORT comments |")
     print("|---|---|---|---|---|---|---|---|")
     for w, files in WORKLOADS.items():
         base = None
@@ -72,9 +109,9 @@ def main():
                 add = sum(j2 - j1 for _, _, _, j1, j2 in ops)
                 rem = sum(i2 - i1 for _, i1, i2, _, _ in ops)
                 diff = "+%d / −%d" % (add, rem)
-            print("| %s | %s | %d | %d (%+.0f%%) | %s | %d | %d | %d |" % (
+            print("| %s | %s | %d | %d (%+.0f%%) | %s | %d / %d / %d | %d | %d |" % (
                 w, f, s["lines"], len(s["code"]), 100 * (len(s["code"]) / len(base["code"]) - 1),
-                diff, s["decl"], s["tokens"], s["port"]))
+                diff, *s["decl"], s["tokens"], s["port"]))
 
 
 main()

@@ -28,3 +28,9 @@ bumpalo = { version = "3", features = ["collections"] }
 mimalloc = { version = "0.1", default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+# Control (not part of the reading): the original with only the ports'
+# non-allocator source changes. See the file header.
+[[bin]]
+name = "serde_json_xform-std-control"
+path = "src/bin/std_control.rs"

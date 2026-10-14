@@ -36,11 +36,11 @@ cargo build --locked --profile "$PROFILE" --bins 2>&1 | tail -3
 BIN=target/$PROFILE
 cargo tree --locked -e normal --depth 1 >> work/env-$PROFILE.txt
 
-# The std binaries must not contain mimalloc; the std-mimalloc ones must.
+# Only the std-mimalloc binaries may contain mimalloc.
 for p in treebuild serde_json_xform; do
-  for v in std std-mimalloc; do
-    printf '%s-%s mi_malloc symbols: %s\n' "$p" "$v" \
-      "$(nm "$BIN/$p-$v" | grep -c ' mi_malloc$' || true)" >> work/env-$PROFILE.txt
+  for v in std std-mimalloc std-control ordstack bumpalo; do
+    printf '%s-%s mi_free symbols: %s\n' "$p" "$v" \
+      "$(nm "$BIN/$p-$v" | grep -c ' T mi_free$' || true)" >> work/env-$PROFILE.txt
   done
 done
 

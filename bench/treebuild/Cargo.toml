@@ -26,3 +26,9 @@ path = "src/bin/bumpalo.rs"
 ordstack = { path = "../../crates/ordstack" }
 bumpalo = { version = "3", features = ["collections", "boxed"] }
 mimalloc = { version = "0.1", default-features = false }
+
+# Control (not part of the reading): the original with only the ports'
+# non-allocator source changes. See the file header.
+[[bin]]
+name = "treebuild-std-control"
+path = "src/bin/std_control.rs"
