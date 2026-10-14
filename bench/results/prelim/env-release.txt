@@ -1,0 +1,63 @@
+## date
+2026年 10月 14日 星期三 04:49:27 UTC
+## host
+Linux xinyan-server 6.8.0-138-generic #138~22.04.1-Ubuntu SMP PREEMPT_DYNAMIC Fri Aug  7 13:43:15 UTC  x86_64 x86_64 x86_64 GNU/Linux
+## cpu
+CPU(s):                                  192
+Model name:                              AMD EPYC 7K62 48-Core Processor
+Thread(s) per core:                      1
+Socket(s):                               2
+CPU max MHz:                             2600.0000
+CPU min MHz:                             0.0000
+L1d cache:                               3 MiB (96 instances)
+L1i cache:                               3 MiB (96 instances)
+L2 cache:                                48 MiB (96 instances)
+L3 cache:                                384 MiB (24 instances)
+Vulnerability L1tf:                      Not affected
+## governor
+schedutil
+## load
+65.48 42.66 25.65 27/5654 4090542
+## glibc
+ldd (Ubuntu GLIBC 2.35-0ubuntu3.15) 2.35
+## rustc
+rustc 1.97.1 (8bab26f4f 2026-07-14)
+binary: rustc
+commit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452
+commit-date: 2026-07-14
+host: x86_64-unknown-linux-gnu
+release: 1.97.1
+LLVM version: 22.1.6
+## cargo
+cargo 1.97.1 (c980f4866 2026-06-30)
+## python
+Python 3.10.12
+## perf
+perf version 6.8.12
+## perf_event_paranoid
+1
+-rw-rw-r-- 1 xinyan xinyan 59694615 10月 14 12:46 work/big4.json
+-rw-rw-r-- 1 xinyan xinyan 14677152 10月 14 12:46 work/big.json
+4a15650119f6c29e1565cb0b49ea896ca9d94afb256ff89bacedcb97307d83ec  work/big.json
+3c09136fc7040c2a9df6696ad8a5212c72489128746a461f5e41c39b0fd61b6a  work/big4.json
+bench-serde-json-xform v0.0.0 (/home/xinyan/ordstack/bench/serde_json_xform)
+├── bumpalo v3.20.3
+├── mimalloc v0.1.52
+├── ordstack v0.1.0 (/home/xinyan/ordstack/crates/ordstack)
+├── serde v1.0.229
+└── serde_json v1.0.154
+
+bench-treebuild v0.0.0 (/home/xinyan/ordstack/bench/treebuild)
+├── bumpalo v3.20.3
+├── mimalloc v0.1.52 (*)
+└── ordstack v0.1.0 (/home/xinyan/ordstack/crates/ordstack) (*)
+treebuild-std mi_free symbols: 0
+treebuild-std-mimalloc mi_free symbols: 1
+treebuild-std-control mi_free symbols: 0
+treebuild-ordstack mi_free symbols: 0
+treebuild-bumpalo mi_free symbols: 0
+serde_json_xform-std mi_free symbols: 0
+serde_json_xform-std-mimalloc mi_free symbols: 1
+serde_json_xform-std-control mi_free symbols: 0
+serde_json_xform-ordstack mi_free symbols: 0
+serde_json_xform-bumpalo mi_free symbols: 0

@@ -49,7 +49,10 @@ Load is recorded before and during each case. It
 records wall time, `ru_maxrss`, user/sys time and minor faults per run, then
 `perf stat -e instructions,cycles` (`PERF_RUNS`, default 7, rotated; skipped if perf
 is unavailable), then one run of each port with `ORDSTACK_STATS=1` for
-arena statistics. `summarise.py` turns the JSON into the tables in
+arena statistics. `rss.py` then measures peak RSS under `/usr/bin/time -f %M`
+(5 rotated runs; the harness's own wait4 figure is floored at its ~20 MB),
+and
+`summarise.py` turns the JSON into the tables in
 `work/summary-<profile>.md` and applies the reading rule mechanically;
 `srcstats.py` writes the source-cost table to `work/srcstats.md`. Generated
 inputs, raw JSON and logs stay in `work/` (git-ignored).

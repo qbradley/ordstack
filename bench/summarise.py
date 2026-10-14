@@ -40,15 +40,21 @@ def main():
                       " **(reported)**" if a["core"] == c["core"] and
                       abs(a["max_rel_iqr"] - c["max_rel_iqr"]) < 1e-12 else ""))
         print()
+        src = ("`/usr/bin/time %%M`, %d runs" % len(c["rss_time_kb"]["std"])
+               if "rss_time_kb" in c else "wait4 ru_maxrss, floored at harness RSS")
         print("| variant | wall median ms | wall IQR ms | wall min–max ms | vs std | "
-              "user+sys median ms | peak RSS median MB | RSS min–max MB | vs std | minor faults |")
+              "user+sys median ms | peak RSS median MB (%s) | RSS min–max MB | vs std | "
+              "minor faults |" % src)
         print("|---|---|---|---|---|---|---|---|---|---|")
         s = {}
         for v in vs:
             runs = c["runs"][v]
             w = q([x["wall"] * 1e3 for x in runs])
             cpu = statistics.median([(x["user"] + x["sys"]) * 1e3 for x in runs])
-            rss = q([x["maxrss_kb"] / 1024 for x in runs])
+            if "rss_time_kb" in c:  # /usr/bin/time pass (rss.py); see its docstring
+                rss = q([kb / 1024 for kb in c["rss_time_kb"][v]])
+            else:  # wait4 from the harness: floored at the harness's own RSS
+                rss = q([x["maxrss_kb"] / 1024 for x in runs])
             flt = statistics.median([x["minflt"] for x in runs])
             s[v] = {"wall": w, "rss": rss, "cpu": cpu, "flt": flt}
         for v in vs:

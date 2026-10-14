@@ -62,6 +62,7 @@ done
 
 load_snapshot "before timed runs" >> "$ENVF"
 python3 -I harness.py "$BIN" work "work/results-$PROFILE.json"
+python3 -I rss.py "$BIN" work "work/results-$PROFILE.json"
 load_snapshot "after timed runs" >> "$ENVF"
 python3 -I summarise.py "work/results-$PROFILE.json" > "work/summary-$PROFILE.md"
 python3 -I srcstats.py > work/srcstats.md
