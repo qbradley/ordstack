@@ -1,7 +1,7 @@
 //! `SMap` and `SFrozenMap`.
 
 use ordstack::map::Entry;
-use ordstack::{AllocErrorKind, SMap, Stack};
+use ordstack::{AllocErrorKind, Frame, SMap, Stack};
 use std::cell::{Cell, RefCell};
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::panic::{AssertUnwindSafe, catch_unwind};
@@ -410,4 +410,129 @@ fn entry_api() {
         m.iter().map(|(k, v)| (*k, *v)).collect::<Vec<_>>(),
         [("a", 12), ("b", 2), ("c", 6)]
     );
+}
+
+#[test]
+fn freeze_compacts_in_place() {
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let mut m: SMap<u64, u64> = SMap::new_in(&mut f);
+    m.extend((0..20).map(|i| (i, i + 1))); // 28 entries' room, 32 slots
+    let first = m.get(&0).unwrap() as *const u64;
+    let fm = m.freeze();
+    // 20 entries and the 32-slot index 20 needs, right after them.
+    assert_eq!(f.end_offset(), 20 * E64 + 32 * 4);
+    let b = f.alloc(5u64); // the frame is free again, beside the map
+    assert_eq!(*b, 5);
+    assert_eq!(fm.get(&0).unwrap() as *const u64, first);
+    assert_eq!(fm.len(), 20);
+    assert!((0..20).all(|i| fm.get(&i) == Some(&(i + 1))));
+    assert!(fm.keys().copied().eq(0..20));
+    assert_eq!(fm.get_index_of(&19), Some(19));
+    assert!(!fm.contains_key(&20));
+}
+
+#[test]
+fn freeze_of_an_empty_map() {
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let _kept = f.alloc(1u64);
+    let m: SMap<u64, u64> = SMap::new_in(&mut f);
+    let fm = m.freeze();
+    assert!(fm.is_empty() && fm.get(&1).is_none());
+    let mut m: SMap<u64, u64> = SMap::new_in(&mut f);
+    m.insert(1, 1);
+    m.swap_remove(&1);
+    let fm2 = m.freeze(); // allocated, but empty: the block goes back
+    assert!(fm2.is_empty());
+    assert_eq!(f.end_offset(), 8);
+    drop((fm, fm2));
+}
+
+#[test]
+fn frozen_map_mutation_iteration_and_drop_order() {
+    let l = log();
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let mut m = SMap::new_in(&mut f);
+    for i in 0..3 {
+        m.insert(i, D(i, l.clone()));
+    }
+    let mut fm = m.freeze();
+    fm.get_mut(&1).unwrap().0 = 11;
+    for (_, d) in &mut fm {
+        d.0 += 100;
+    }
+    assert_eq!(
+        fm.values().map(|d| d.0).collect::<Vec<_>>(),
+        [100, 111, 102]
+    );
+    assert_eq!(fm.get_index(2).map(|(k, _)| *k), Some(2));
+    drop(fm);
+    assert_eq!(*l.borrow(), [102, 111, 100]);
+}
+
+#[test]
+fn freeze_into_another_stack() {
+    let l = log();
+    let mut results = Stack::with_reserve(1 << 16);
+    let mut scratch = Stack::with_reserve(1 << 16);
+    let (mut out, mut tmp) = (results.frame(), scratch.frame());
+    let mut m = SMap::with_capacity_in(40, &mut tmp);
+    for i in 0..10 {
+        m.insert(i, D(i, l.clone()));
+    }
+    let fm = m.freeze_into(&mut out);
+    assert!(l.borrow().is_empty()); // moved, not dropped
+    // 10 entries, then a 16-slot index rounded up to whole entries. (An
+    // entry holds the same fields as this tuple.)
+    let e = std::mem::size_of::<(u64, u32, D)>();
+    assert_eq!(out.end_offset(), 10 * e + (16 * 4usize).div_ceil(e) * e);
+    assert!((0..10).all(|i| fm.get(&i).map(|d| d.0) == Some(i)));
+    let again = tmp.alloc(1u8); // the scratch block was reclaimed
+    assert_eq!(tmp.end_offset(), 1);
+    drop((fm, again));
+    assert_eq!(*l.borrow(), [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]);
+}
+
+/// Hashes its number, and first, when it can, uses the frame its map lives
+/// on: allocates there, then reclaims and trims everything above the frame.
+struct Meddler<'a, 'f>(u64, &'a RefCell<Frame<'f>>);
+impl Hash for Meddler<'_, '_> {
+    fn hash<H: Hasher>(&self, h: &mut H) {
+        if let Ok(mut fr) = self.1.try_borrow_mut() {
+            let junk = fr.alloc([0xA5u8; 512]);
+            assert_eq!(junk[511], 0xA5);
+            fr.reset_above();
+            fr.trim_above();
+        }
+        self.0.hash(h);
+    }
+}
+impl PartialEq for Meddler<'_, '_> {
+    fn eq(&self, o: &Self) -> bool {
+        self.0 == o.0
+    }
+}
+impl Eq for Meddler<'_, '_> {}
+
+/// SOUNDNESS.md H3(b): a frozen map does not borrow its frame, so a key's
+/// `Hash` may use that frame in the middle of a lookup.
+#[test]
+fn a_hash_that_uses_the_frame_cannot_disturb_a_frozen_map() {
+    let mut st = Stack::with_reserve(1 << 16);
+    let cell = RefCell::new(st.frame());
+    let fm = {
+        let mut fr = cell.borrow_mut();
+        let mut m = SMap::new_in(&mut fr);
+        for i in 0..20 {
+            m.insert(Meddler(i, &cell), i * 3); // the frame is busy here
+        }
+        m.freeze()
+    };
+    for round in 0..3 {
+        for i in 0..20 {
+            assert_eq!(fm.get(&Meddler(i, &cell)), Some(&(i * 3)), "round {round}");
+        }
+    }
 }

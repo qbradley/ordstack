@@ -26,7 +26,7 @@ speed or memory use, and the crate does not free frozen blocks one by one.
   followed by `slots` index slots of 4 bytes, so its end is
   `start + usable(slots) * E + slots * 4`.
 - A **frozen block** is the memory behind an `SBox`, `SSlice`, `SStr`,
-  `SFixedVec` or `iter::IntoIter`. It carries the brand `'f` of the frame
+  `SFixedVec`, `SFrozenMap` or `iter::IntoIter`. It carries the brand `'f` of the frame
   that allocated it. One exception: the `IntoIter<'v, T>` inside an
   `iter::VecIntoIter` is not a frozen block. Its memory is the consumed
   vector's unfrozen buffer, at or above `frame.end`; its brand `'v` is the
@@ -62,7 +62,7 @@ and `ptr` is dangling and aligned. Which entries the slots name is a
 correctness property only: slot values are used as indices into a slice
 of length `len`, which is bounds-checked, and every probe is bounded by
 `slots`, so a wrong index gives wrong answers or a panic, never undefined
-behaviour.
+behaviour. For an `SFrozenMap`, its block holds `len` initialised entries followed directly by `slots` initialised index slots, and is a frozen block (E); empty, it has no block and a dangling, aligned `ptr`.
 
 ## Why I holds
 
@@ -267,7 +267,7 @@ closure before anything is reserved; `alloc_slice_clone` has already raised
 `frame.end` past the whole block when the first `clone` runs, so even a
 panic leaves the frame consistent. `SMap` runs the hasher, `Hash` and `Eq` before it changes anything (`insert` and `entry` hash and probe first; `push` then runs no user code), and its growth rebuilds the index from stored hashes, so no user code runs while the index is being rebuilt.
 
-(b) Frozen handles (`SBox`, `SSlice`, `SStr`, `SFixedVec`, `IntoIter`; not
+(b) Frozen handles (`SBox`, `SSlice`, `SStr`, `SFixedVec`, `SFrozenMap`, `IntoIter`; not
 the `IntoIter` inside a `VecIntoIter`, which is (a)). These do not borrow
 their frame, so an element destructor *can* use the frame that
 allocated the very block it sits in (for example through a
@@ -293,6 +293,8 @@ only at or above `frame.end`:
 - `mem::swap`, `mem::replace` and `Option::take` on the frame value move the
   stack reference and `end` together, so each frame still resets only to its
   own `end` on its own stack.
+
+A frozen map's lookups run the hasher, `Hash` and `Eq`, which may therefore use the map's own frame; the map's block lies below `frame.end` like any frozen block. `tests/map.rs::a_hash_that_uses_the_frame_cannot_disturb_a_frozen_map` runs allocation, `reset_above` and `trim_above` from a key's `Hash` during lookups, under Miri as well.
 
 This follows from `frame.rs`, `stack.rs`, `vec.rs` and `region.rs`. (`SStr`
 is listed for completeness; it holds bytes and runs no user code.) A destructor
@@ -325,6 +327,7 @@ state: nothing in them is mid-update.
 | `SMap::insert`, lookups, `swap_remove`, `shift_remove` (hasher, `Hash`, `Eq`) | nothing changed yet: the key is hashed and the index probed before any write | nothing to undo |
 | `SMap::clear`, `Drop` for `SMap` (entry destructors) | `len := 0` and, for `clear`, the index already emptied | `drop_back_to_front`'s guard drops the rest; the map is empty and consistent |
 | `Extend` for `SMap` | map consistent between inserts | entries inserted so far remain |
+| `SMap::freeze_into` when the destination is exhausted | the source map is intact | the map is dropped with its entries |
 | `Entry::or_insert_with` closure | the key was probed and found absent; nothing reserved yet | nothing to undo; the key is dropped with the entry |
 
 In every case `top` and every `end` are consistent, because user code never
@@ -343,11 +346,12 @@ frame's fields. `tests/panics.rs` exercises the destructor, `clone`,
 | `VecIntoIter<'v, 'f, T>` | covariant | invariant | covariant |
 | `SString<'v, 'f>` | covariant | invariant | – |
 | `SMap<'v, 'f, K, V, S>` | covariant | invariant | covariant in `K`, `V`, `S` |
+| `SFrozenMap<'f, K, V, S>` | – | covariant | covariant in `K`, `V`, `S` |
 | `map::Iter<'a, K, V>`, `Keys`, `Values` | – | – | covariant in `K`, `V` (they wrap `slice::Iter`) |
 | `map::IterMut<'a, K, V>`, `ValuesMut` | – | – | invariant in `K`, `V` (they wrap `slice::IterMut`) |
 
 `Frame<'f>` holds `&'f Stack`. The frozen handles hold a `NonNull<T>` and
-`PhantomData<(&'f (), T)>`. Shortening a brand is sound (the block is valid
+`PhantomData<(&'f (), T)>` (`SFrozenMap` holds `PhantomData<(&'f (), Bucket<K, V>)>`). Shortening a brand is sound (the block is valid
 for the longer lifetime). `SVec` must be invariant in `'f` because it holds
 `&mut Frame<'f>` and `freeze` returns that brand; it gets this from the
 reference `&'v mut Frame<'f>`. Covariance in `T` is the same as `Vec<T>`'s
@@ -440,7 +444,7 @@ its `debug_assert!` covers only `off <= top`.
 
 ## Per-function table
 
-One row for each of the 112 public functions (`grep -n "pub fn\|pub const fn"
+One row for each of the 128 public functions (`grep -n "pub fn\|pub const fn"
 crates/ordstack/src/*.rs`), then the trait impls. "Resets" means
 `reset_to(own end)`, justified under "Why reset on reacquire is sound".
 
@@ -590,6 +594,27 @@ crates/ordstack/src/*.rs`), then the trait impls. "Resets" means
 | `OccupiedEntry::into_mut` | `OccupiedEntry` by value | as `get_mut`, for the map borrow `'a` |
 | `VacantEntry::key` | `&VacantEntry` | reads the key |
 | `VacantEntry::insert` | `VacantEntry` by value | `push` with the hash computed by `entry`: `reserve(1)`, write entry `len`, record its slot; no user code between the probe and the push |
+| `SMap::freeze` | `SMap` by value | compacts in place: the new index (`slots_for(len) <= slots` slots) is written inside the old block right after the entries; lowers `top` to its end and raises `frame.end` to the same offset (E); returns the brand `'f`. With no block: an empty map and nothing touched; with a block but no entries: `reset_to(frame.end)` gives the block back |
+| `SMap::freeze_into` | `SMap` by value, `&mut Frame<'g>` | as `SVec::freeze_into`: block from `dst.try_alloc_array`, one bitwise copy of the entries, source `len := 0` so each entry is owned once, index built in the new block; `dst` is on another stack by the chain property |
+
+### `SFrozenMap`
+
+| Function | Takes | Preserves I, T, E, B, M because |
+|---|---|---|
+| `SFrozenMap::len` | `&SFrozenMap` | reads `len` |
+| `SFrozenMap::is_empty` | `&SFrozenMap` | reads `len` |
+| `SFrozenMap::hasher` | `&SFrozenMap` | a shared reference to the hasher |
+| `SFrozenMap::get_index` | `&SFrozenMap` | bounds-checked read through `parts` |
+| `SFrozenMap::get_index_mut` | `&mut SFrozenMap` | bounds-checked; the key stays shared |
+| `SFrozenMap::iter` | `&SFrozenMap` | slice iterator over `parts` |
+| `SFrozenMap::iter_mut` | `&mut SFrozenMap` | slice iterator over `parts_mut`; keys stay shared |
+| `SFrozenMap::keys` | `&SFrozenMap` | `iter` |
+| `SFrozenMap::values` | `&SFrozenMap` | `iter` |
+| `SFrozenMap::values_mut` | `&mut SFrozenMap` | `iter_mut` |
+| `SFrozenMap::get_index_of` | `&SFrozenMap` | hashes and probes through shared references; the user code may use the frame (H3(b)) |
+| `SFrozenMap::get` | `&SFrozenMap` | `get_index_of`, then a bounds-checked read |
+| `SFrozenMap::get_mut` | `&mut SFrozenMap` | `get_index_of`, then bounds-checked access through `parts_mut` |
+| `SFrozenMap::contains_key` | `&SFrozenMap` | `get_index_of` |
 
 ### `AllocError`
 
@@ -610,16 +635,16 @@ crates/ordstack/src/*.rs`), then the trait impls. "Resets" means
 | `IntoIterator` for `SFixedVec` | `into_slice`, then `SSlice::into_iter` |
 | `IntoIterator` for `SVec`; `Iterator`, `DoubleEndedIterator`, `ExactSizeIterator` for `VecIntoIter` | unsafe row 63; afterwards delegates to `IntoIter`; never writes `top` or an `end`, so the buffer is reclaimed by the next reset of the frame |
 | `Extend<T>` for `SVec`; `Extend<char>`, `Extend<&str>`, `fmt::Write` for `SString` | loops over `push` / `push_str` |
-| `Drop` for `SMap` | `len := 0` first, then drops the entries back to front; never writes `top` or an `end` |
+| `Drop` for `SMap`, `SFrozenMap` | `len := 0` first, then drops the entries back to front; never writes `top` or an `end` |
 | `Extend<(K, V)>` for `SMap` | `try_reserve` of the lower size hint (its error is ignored), then loops over `insert` |
-| `Debug` for `SMap` | `debug_map` over `iter` |
-| `IntoIterator` for `&SMap`, `&mut SMap`; `Iterator`, `DoubleEndedIterator`, `ExactSizeIterator` for `map::Iter`, `IterMut`, `Keys`, `Values`, `ValuesMut` | `iter` / `iter_mut`; each wraps a slice iterator over the entries |
+| `Debug` for `SMap`, `SFrozenMap` | `debug_map` over `iter` |
+| `IntoIterator` for `&SMap`, `&mut SMap`, `&SFrozenMap`, `&mut SFrozenMap`; `Iterator`, `DoubleEndedIterator`, `ExactSizeIterator` for `map::Iter`, `IterMut`, `Keys`, `Values`, `ValuesMut` | `iter` / `iter_mut`; each wraps a slice iterator over the entries |
 | `Default`, `Debug` for `Stack` | `Stack::new`; reads three integers |
 | `Debug`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Hash`, `Borrow` (`deref_traits!`); `Display` for `SStr`, `SString`; `Display`, `Error` for `AllocError` | delegate to the `Deref` target through `&self` |
 
 ## Every `unsafe` block
 
-`grep -o "unsafe {" crates/ordstack/src/*.rs` finds 70 blocks: 67 in library
+`grep -o "unsafe {" crates/ordstack/src/*.rs` finds 78 blocks: 75 in library
 code and 3 in the unit tests of `region.rs`. There is one numbered row for
 each, in file order; `scripts/check-unsafe-table.sh`, run by
 `scripts/check.sh`, fails when the two counts differ. "Handle contract" means the safety contract of the
@@ -629,7 +654,7 @@ brand and holds initialised values, or the pointer is dangling and aligned
 and the block has zero size. The section "Why frozen blocks stay valid for
 their brand" is what discharges it.
 
-There are also 8 `unsafe fn`, all private to the crate; their contracts
+There are also 9 `unsafe fn`, all private to the crate; their contracts
 follow the table. There is no `unsafe impl` and no `unsafe trait`.
 
 | # | File | Function | Operation | Justified by |
@@ -704,6 +729,14 @@ follow the table. There is no `unsafe impl` and no `unsafe trait`.
 | 68 | `map.rs` | `SMap::pop_bucket` | `ptr.add(len).read()` | M; `len` was lowered first; both callers removed the only slot naming that entry first |
 | 69 | `map.rs` | `SMap::clear` | `drop_back_to_front(ptr, len)` | M; `self.len := 0` and the index emptied first |
 | 70 | `map.rs` | `Drop::drop` for `SMap` | `drop_back_to_front(ptr, len)` | M; `self.len := 0` first |
+| 71 | `map.rs` | `SMap::into_parts` | `ptr::read` of the frame reference and the hasher | `this` is in `ManuallyDrop` and never used again, so both are moved, not duplicated |
+| 72 | `map.rs` | `SMap::freeze` | `write_bytes(0)` over the compact index | `len <= usable(slots)` and `slots_for(len) <= slots`, so `[len * E, len * E + new_slots * 4)` lies inside the old block, past the entries |
+| 73 | `map.rs` | `SMap::freeze` | `SFrozenMap::from_raw_parts` | M for the entries; the index was zeroed (row 72) and is then filled by safe code; `frame.end` was just raised past the block (E) |
+| 74 | `map.rs` | `SMap::freeze_into` | `copy_nonoverlapping` of the entries, `len := 0`, `write_bytes(0)` over the index | fresh block of `units` entries from `dst.try_alloc_array`, and `units * E >= len * E + new_slots * 4`; another stack than the source block, as row 59; `len := 0` leaves one owner |
+| 75 | `map.rs` | `SMap::freeze_into` | `SFrozenMap::from_raw_parts` | the block was allocated for `'g` by `dst` (E); entries copied, index zeroed |
+| 76 | `map.rs` | `SFrozenMap::parts` | two `slice::from_raw_parts` | `from_raw_parts`'s contract: `len` entries then `slots` slots, disjoint, valid for the brand; empty: both lengths 0, `ptr` dangling and aligned |
+| 77 | `map.rs` | `SFrozenMap::parts_mut` | two `slice::from_raw_parts_mut` | as row 76; `&mut self` is unique |
+| 78 | `map.rs` | `Drop::drop` for `SFrozenMap` | `drop_back_to_front(ptr, len)` | as row 76; `self.len := 0` first |
 
 The `unsafe fn` contracts:
 
@@ -715,6 +748,7 @@ The `unsafe fn` contracts:
 | `slice.rs` | `SStr::from_utf8_unchecked` | the bytes are valid UTF-8 |
 | `region.rs` | `os::unmap` (Unix and Miri) | `base`/`len` is a live mapping returned by `map` |
 | `region.rs` | `os::discard` (Unix and Miri) | the page-aligned range lies inside a live mapping and nothing relies on its contents (a no-op under Miri) |
+| `map.rs` | `SFrozenMap::from_raw_parts` | `ptr` points to `len` initialised entries followed by `slots` initialised index slots, in a block that stays allocated and unaliased for `'f` |
 
 ## Verification
 
@@ -725,7 +759,7 @@ is meant for a large machine.
   `clippy::undocumented_unsafe_blocks` denied.
 - The test suite on stable, debug and release, including the doctests of the
   crate documentation and of `README.md`.
-- **Compile-fail tests.** 18 cases in `tests/ui/fail`, one per rejection the
+- **Compile-fail tests.** 19 cases in `tests/ui/fail`, one per rejection the
   guarantee depends on, each with a compiling twin in `tests/ui/pass` that
   differs only in the offending line. The twins are generated by
   `scripts/gen-ui-pass.sh`; `check.sh` regenerates them and fails if they

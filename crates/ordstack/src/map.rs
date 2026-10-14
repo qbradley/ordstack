@@ -11,7 +11,7 @@ use core::borrow::Borrow;
 use core::fmt;
 use core::hash::{BuildHasher, Hash};
 use core::marker::PhantomData;
-use core::mem::{align_of, size_of};
+use core::mem::{ManuallyDrop, align_of, size_of};
 use core::ptr::NonNull;
 use std::hash::RandomState;
 
@@ -878,6 +878,316 @@ impl<'a, K, V, S> VacantEntry<'a, '_, '_, K, V, S> {
     pub fn insert(self, value: V) -> &'a mut V {
         let i = self.map.push(self.hash, self.key, value);
         &mut self.map.parts_mut().0[i].value
+    }
+}
+
+impl<'v, 'f, K, V, S> SMap<'v, 'f, K, V, S> {
+    fn into_parts(self) -> (&'v mut Frame<'f>, NonNull<Bucket<K, V>>, usize, usize, S) {
+        let this = ManuallyDrop::new(self);
+        // SAFETY: `this` is never used or dropped again, so this moves the
+        // unique frame reference and the hasher out of it.
+        let (frame, hasher) =
+            unsafe { (core::ptr::read(&this.frame), core::ptr::read(&this.hasher)) };
+        (frame, this.ptr, this.len, this.slots, hasher)
+    }
+
+    /// Freezes the map in place, without moving the entries. The index is
+    /// rebuilt right after the entries at the size `len` entries need, the
+    /// rest of the block goes back to the stack, and the frame can be used
+    /// again. Runs no user code.
+    ///
+    /// # Examples
+    /// ```
+    /// use ordstack::{SMap, Stack};
+    ///
+    /// let mut st = Stack::with_reserve(1 << 16);
+    /// let mut f = st.frame();
+    /// let mut m: SMap<u32, &str> = SMap::new_in(&mut f);
+    /// m.insert(7, "seven");
+    /// let frozen = m.freeze();
+    /// let b = f.alloc(1u8); // sits beside `frozen`
+    /// assert_eq!((frozen.get(&7), *b), (Some(&"seven"), 1));
+    /// ```
+    pub fn freeze(self) -> SFrozenMap<'f, K, V, S> {
+        self.check();
+        let (frame, ptr, len, slots, hasher) = self.into_parts();
+        if slots == 0 {
+            return SFrozenMap::empty(hasher);
+        }
+        let st = frame.st;
+        if len == 0 {
+            st.reset_to(frame.end);
+            return SFrozenMap::empty(hasher);
+        }
+        // `len <= usable(slots)`, so the compact index is no larger.
+        let new_slots = slots_for(len).unwrap_or_else(|e| fail(e));
+        let new_end = st.offset_of(ptr.cast()) + len * size_of::<Bucket<K, V>>() + new_slots * 4;
+        // SAFETY: `[len, len + new_slots * 4 bytes)` past the entries lies
+        // inside the old block (the old block ends at or after `new_end`),
+        // and holds no entry.
+        unsafe {
+            ptr.as_ptr()
+                .add(len)
+                .cast::<u32>()
+                .write_bytes(0, new_slots)
+        };
+        st.reset_to(new_end);
+        frame.end = new_end;
+        // SAFETY: `len` initialised entries followed by `new_slots` zeroed
+        // slots, all below `frame.end`, which does not decrease while `'f` is
+        // alive.
+        let mut m = unsafe { SFrozenMap::from_raw_parts(ptr, len, new_slots, hasher) };
+        let (b, index) = m.parts_mut();
+        fill_index(index, b.iter().map(|b| b.hash));
+        m
+    }
+
+    /// Moves the entries into a frozen block of `dst` with one bitwise
+    /// copy, and builds the index there. This map's block is left to be
+    /// reclaimed. As with [`SVec::freeze_into`](crate::SVec::freeze_into),
+    /// `dst` is in practice a frame of another stack. Runs no user code.
+    ///
+    /// # Panics
+    /// If `dst`'s stack is exhausted, or an entry needs alignment above
+    /// 4096. The map is then dropped with its entries during unwinding.
+    pub fn freeze_into<'g>(mut self, dst: &mut Frame<'g>) -> SFrozenMap<'g, K, V, S> {
+        self.check();
+        let len = self.len;
+        if len == 0 {
+            let (_, _, _, _, hasher) = self.into_parts();
+            return SFrozenMap::empty(hasher);
+        }
+        let new_slots = slots_for(len).unwrap_or_else(|e| fail(e));
+        let units = len + (new_slots * 4).div_ceil(size_of::<Bucket<K, V>>());
+        let p = dst
+            .try_alloc_array::<Bucket<K, V>>(units)
+            .unwrap_or_else(|e| fail(e));
+        // SAFETY: `p` is a fresh block of `units` entries' size, which holds
+        // `len` entries and then `new_slots` slots, and cannot overlap our
+        // block. Setting `self.len = 0` hands the entries to the copy.
+        unsafe {
+            core::ptr::copy_nonoverlapping(self.ptr.as_ptr(), p.as_ptr(), len);
+            self.len = 0;
+            p.as_ptr().add(len).cast::<u32>().write_bytes(0, new_slots);
+        }
+        let (_, _, _, _, hasher) = self.into_parts();
+        // SAFETY: `len` initialised entries followed by `new_slots` zeroed
+        // slots, in a block `dst` allocated for `'g`.
+        let mut m = unsafe { SFrozenMap::from_raw_parts(p, len, new_slots, hasher) };
+        let (b, index) = m.parts_mut();
+        fill_index(index, b.iter().map(|b| b.hash));
+        m
+    }
+}
+
+/// A frozen, insertion-ordered hash map: a frozen block holding the entries
+/// and a compact index. Lookups and iteration as for [`SMap`]; no
+/// insertion or removal. Entries are dropped back to front.
+pub struct SFrozenMap<'f, K, V, S = RandomState> {
+    ptr: NonNull<Bucket<K, V>>,
+    len: usize,
+    /// Index slots, right after the `len` entries; 0 when empty.
+    slots: usize,
+    hasher: S,
+    _brand: PhantomData<(&'f (), Bucket<K, V>)>,
+}
+
+impl<'f, K, V, S> SFrozenMap<'f, K, V, S> {
+    fn empty(hasher: S) -> Self {
+        SFrozenMap {
+            ptr: NonNull::dangling(),
+            len: 0,
+            slots: 0,
+            hasher,
+            _brand: PhantomData,
+        }
+    }
+
+    /// # Safety
+    /// `ptr` must point to `len` initialised entries followed by `slots`
+    /// initialised slots, in a block that stays allocated and unaliased for
+    /// `'f`.
+    unsafe fn from_raw_parts(
+        ptr: NonNull<Bucket<K, V>>,
+        len: usize,
+        slots: usize,
+        hasher: S,
+    ) -> Self {
+        SFrozenMap {
+            ptr,
+            len,
+            slots,
+            hasher,
+            _brand: PhantomData,
+        }
+    }
+
+    fn check(&self) {
+        debug::check_live(
+            self.ptr.as_ptr().cast(),
+            self.len * size_of::<Bucket<K, V>>() + self.slots * 4,
+        );
+    }
+
+    fn parts(&self) -> (&[Bucket<K, V>], &[u32]) {
+        self.check();
+        // SAFETY: handle contract (`from_raw_parts`): `len` entries, then
+        // `slots` slots, disjoint, alive for the brand. When empty both
+        // lengths are 0 and the pointer is dangling and aligned.
+        unsafe {
+            let p = self.ptr.as_ptr();
+            (
+                core::slice::from_raw_parts(p, self.len),
+                core::slice::from_raw_parts(p.add(self.len).cast(), self.slots),
+            )
+        }
+    }
+
+    fn parts_mut(&mut self) -> (&mut [Bucket<K, V>], &mut [u32]) {
+        self.check();
+        // SAFETY: as in `parts`; `&mut self` is unique.
+        unsafe {
+            let p = self.ptr.as_ptr();
+            (
+                core::slice::from_raw_parts_mut(p, self.len),
+                core::slice::from_raw_parts_mut(p.add(self.len).cast(), self.slots),
+            )
+        }
+    }
+
+    /// The number of entries.
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    /// Whether the map has no entries.
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    /// The map's hasher.
+    pub fn hasher(&self) -> &S {
+        &self.hasher
+    }
+
+    /// The entry at `index` in insertion order.
+    pub fn get_index(&self, index: usize) -> Option<(&K, &V)> {
+        self.parts().0.get(index).map(|b| (&b.key, &b.value))
+    }
+
+    /// The entry at `index`, with its value mutable.
+    pub fn get_index_mut(&mut self, index: usize) -> Option<(&K, &mut V)> {
+        self.parts_mut()
+            .0
+            .get_mut(index)
+            .map(|b| (&b.key, &mut b.value))
+    }
+
+    /// Iterates the entries in insertion order.
+    pub fn iter(&self) -> Iter<'_, K, V> {
+        Iter {
+            inner: self.parts().0.iter(),
+        }
+    }
+
+    /// Iterates the entries in insertion order, with mutable values.
+    pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
+        IterMut {
+            inner: self.parts_mut().0.iter_mut(),
+        }
+    }
+
+    /// Iterates the keys in insertion order.
+    pub fn keys(&self) -> Keys<'_, K, V> {
+        Keys { inner: self.iter() }
+    }
+
+    /// Iterates the values in insertion order.
+    pub fn values(&self) -> Values<'_, K, V> {
+        Values { inner: self.iter() }
+    }
+
+    /// Iterates the values in insertion order, mutably.
+    pub fn values_mut(&mut self) -> ValuesMut<'_, K, V> {
+        ValuesMut {
+            inner: self.iter_mut(),
+        }
+    }
+}
+
+impl<K: Hash + Eq, V, S: BuildHasher> SFrozenMap<'_, K, V, S> {
+    /// The position of `key` in insertion order.
+    pub fn get_index_of<Q>(&self, key: &Q) -> Option<usize>
+    where
+        K: Borrow<Q>,
+        Q: ?Sized + Hash + Eq,
+    {
+        if self.len == 0 {
+            return None;
+        }
+        let hash = self.hasher.hash_one(key);
+        let (b, index) = self.parts();
+        lookup(b, index, hash, key)
+    }
+
+    /// The value under `key`.
+    pub fn get<Q>(&self, key: &Q) -> Option<&V>
+    where
+        K: Borrow<Q>,
+        Q: ?Sized + Hash + Eq,
+    {
+        let i = self.get_index_of(key)?;
+        Some(&self.parts().0[i].value)
+    }
+
+    /// The value under `key`, mutably.
+    pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
+    where
+        K: Borrow<Q>,
+        Q: ?Sized + Hash + Eq,
+    {
+        let i = self.get_index_of(key)?;
+        Some(&mut self.parts_mut().0[i].value)
+    }
+
+    /// Whether `key` is in the map.
+    pub fn contains_key<Q>(&self, key: &Q) -> bool
+    where
+        K: Borrow<Q>,
+        Q: ?Sized + Hash + Eq,
+    {
+        self.get_index_of(key).is_some()
+    }
+}
+
+impl<K, V, S> Drop for SFrozenMap<'_, K, V, S> {
+    fn drop(&mut self) {
+        self.check();
+        let len = core::mem::replace(&mut self.len, 0);
+        // SAFETY: we own `len` initialised entries and `self.len` is now 0.
+        unsafe { drop_back_to_front(self.ptr.as_ptr(), len) };
+    }
+}
+
+impl<K: fmt::Debug, V: fmt::Debug, S> fmt::Debug for SFrozenMap<'_, K, V, S> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_map().entries(self.iter()).finish()
+    }
+}
+
+impl<'a, K, V, S> IntoIterator for &'a SFrozenMap<'_, K, V, S> {
+    type Item = (&'a K, &'a V);
+    type IntoIter = Iter<'a, K, V>;
+    fn into_iter(self) -> Iter<'a, K, V> {
+        self.iter()
+    }
+}
+
+impl<'a, K, V, S> IntoIterator for &'a mut SFrozenMap<'_, K, V, S> {
+    type Item = (&'a K, &'a mut V);
+    type IntoIter = IterMut<'a, K, V>;
+    fn into_iter(self) -> IterMut<'a, K, V> {
+        self.iter_mut()
     }
 }
 

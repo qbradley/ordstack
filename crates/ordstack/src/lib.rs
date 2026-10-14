@@ -276,7 +276,7 @@ pub use boxed::SBox;
 pub use error::{AllocError, AllocErrorKind};
 pub use fixed::SFixedVec;
 pub use frame::Frame;
-pub use map::SMap;
+pub use map::{SFrozenMap, SMap};
 pub use slice::{SSlice, SStr};
 pub use stack::{DEFAULT_RESERVE, Stack};
 pub use string::SString;
