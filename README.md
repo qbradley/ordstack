@@ -98,7 +98,7 @@ them separate stacks, and copy the result across once, at exact size, with
 use ordstack::{SVec, Stack};
 
 let mut keep = Stack::new();
-let mut scratch = Stack::new();
+let mut scratch = Stack::with_reserve(1 << 20); // 1 MiB of scratch space
 let mut out = keep.frame();
 let mut work = scratch.frame();
 let mut words: SVec<&str> = SVec::new_in(&mut work);
