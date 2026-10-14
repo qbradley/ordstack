@@ -1,0 +1,28 @@
+[package]
+name = "bench-treebuild"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+# Four variants of one program. `std` and `std-mimalloc` compile the same
+# source file (src/orig.rs, a verbatim copy of the original).
+[[bin]]
+name = "treebuild-std"
+path = "src/bin/std.rs"
+
+[[bin]]
+name = "treebuild-std-mimalloc"
+path = "src/bin/std_mimalloc.rs"
+
+[[bin]]
+name = "treebuild-ordstack"
+path = "src/bin/ordstack.rs"
+
+[[bin]]
+name = "treebuild-bumpalo"
+path = "src/bin/bumpalo.rs"
+
+[dependencies]
+ordstack = { path = "../../crates/ordstack" }
+bumpalo = { version = "3", features = ["collections", "boxed"] }
+mimalloc = { version = "0.1", default-features = false }

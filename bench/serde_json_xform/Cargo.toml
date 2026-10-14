@@ -1,0 +1,30 @@
+[package]
+name = "bench-serde-json-xform"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+# Four variants of one program. `std` and `std-mimalloc` compile the same
+# source file (src/orig.rs: the original plus a phase timer).
+[[bin]]
+name = "serde_json_xform-std"
+path = "src/bin/std.rs"
+
+[[bin]]
+name = "serde_json_xform-std-mimalloc"
+path = "src/bin/std_mimalloc.rs"
+
+[[bin]]
+name = "serde_json_xform-ordstack"
+path = "src/bin/ordstack.rs"
+
+[[bin]]
+name = "serde_json_xform-bumpalo"
+path = "src/bin/bumpalo.rs"
+
+[dependencies]
+ordstack = { path = "../../crates/ordstack" }
+bumpalo = { version = "3", features = ["collections"] }
+mimalloc = { version = "0.1", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

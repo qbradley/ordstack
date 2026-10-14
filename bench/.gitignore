@@ -1,0 +1,4 @@
+target/
+work/
+# The root .gitignore ignores Cargo.lock; the benchmark pins its versions.
+!Cargo.lock
