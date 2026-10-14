@@ -1,0 +1,17 @@
+# Benchmark ports of two workloads onto ordstack. Excluded from the root
+# workspace (like crates/ordstack/fuzz) so its dependencies (serde,
+# bumpalo, mimalloc) never reach the library's lock file or CI.
+[workspace]
+resolver = "2"
+members = ["treebuild", "serde_json_xform"]
+
+# Plain release profile for every variant: opt-level 3, no LTO, the default
+# codegen units. This is what a user of each crate gets by default.
+[profile.release]
+
+# Sensitivity check only (not used for the reading): whole-program LTO, so
+# that non-generic functions of every crate can be inlined across crates.
+[profile.release-lto]
+inherits = "release"
+lto = "fat"
+codegen-units = 1

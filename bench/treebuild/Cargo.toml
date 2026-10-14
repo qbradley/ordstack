@@ -1,0 +1,39 @@
+[package]
+name = "bench-treebuild"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+# Four variants of one program. `std` and `std-mimalloc` compile the same
+# source file (src/orig.rs, a verbatim copy of the original).
+[[bin]]
+name = "treebuild-std"
+path = "src/bin/std.rs"
+
+[[bin]]
+name = "treebuild-std-mimalloc"
+path = "src/bin/std_mimalloc.rs"
+
+[[bin]]
+name = "treebuild-ordstack"
+path = "src/bin/ordstack.rs"
+
+[[bin]]
+name = "treebuild-bumpalo"
+path = "src/bin/bumpalo.rs"
+
+# The bumpalo port with the ordstack port's node layout (frozen handles).
+[[bin]]
+name = "treebuild-bumpalo-frozen"
+path = "src/bin/bumpalo_frozen.rs"
+
+[dependencies]
+ordstack = { path = "../../crates/ordstack" }
+bumpalo = { version = "3", features = ["collections", "boxed"] }
+mimalloc = { version = "0.1", default-features = false }
+
+# Control (not part of the reading): the original with only the ports'
+# non-allocator source changes. See the file header.
+[[bin]]
+name = "treebuild-std-control"
+path = "src/bin/std_control.rs"
