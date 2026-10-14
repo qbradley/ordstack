@@ -32,6 +32,100 @@ order, and freezes into an `SFrozenMap` in place. The crate documentation's
 *Patterns* section shows several stacks, children on the same stack,
 phases, and how to choose a reservation.
 
+## Several containers on one frame
+
+A growable container (`SVec`, `SString`, `SMap`) holds `&mut` to its frame,
+so a frame has at most one at a time. That is what lets it grow in place:
+it is always on top. Two at once does not compile:
+
+```rust,compile_fail,E0499
+use ordstack::{SMap, SVec, Stack};
+
+let mut st = Stack::new();
+let mut f = st.frame();
+let mut tokens: SVec<&str> = SVec::new_in(&mut f);
+let mut counts: SMap<&str, u32> = SMap::new_in(&mut f); // `f` borrowed twice
+tokens.push("a");
+counts.insert("a", 1);
+```
+
+Frozen values (`SBox`, `SSlice`, `SStr`, `SFrozenMap`) do not hold the
+frame, so any number of them can sit on it. Four ways to use more than one
+container:
+
+**One after another.** `freeze` ends a container and gives the frame back;
+what it built stays readable.
+
+```rust
+use ordstack::{SMap, SVec, Stack};
+
+let mut st = Stack::new();
+let mut f = st.frame();
+let mut tokens: SVec<&str> = SVec::new_in(&mut f);
+tokens.extend(["a", "b", "a"]);
+let tokens = tokens.freeze(); // an `SSlice`; `f` is free again
+let mut counts: SMap<&str, u32> = SMap::new_in(&mut f);
+for t in tokens.iter() {
+    *counts.entry(*t).or_default() += 1;
+}
+assert_eq!(counts.get("a"), Some(&2));
+```
+
+**On top of a live container.** `above()` gives a frame above it, for
+something shorter-lived; the container can grow again once that is gone.
+
+```rust
+use ordstack::{SMap, SVec, Stack};
+
+let mut st = Stack::new();
+let mut f = st.frame();
+let mut tokens: SVec<&str> = SVec::new_in(&mut f);
+tokens.push("a");
+{
+    let mut top = tokens.above();
+    let mut seen: SMap<&str, ()> = SMap::new_in(&mut top);
+    seen.insert("x", ());
+} // `seen` and its memory are gone here
+tokens.push("b"); // grows in place again
+assert_eq!(tokens.len(), 2);
+```
+
+**Two stacks.** When two containers must grow during the same phase, give
+them separate stacks, and copy the result across once, at exact size, with
+`freeze_into`.
+
+```rust
+use ordstack::{SVec, Stack};
+
+let mut keep = Stack::new();
+let mut scratch = Stack::with_reserve(1 << 20); // 1 MiB of scratch space
+let mut out = keep.frame();
+let mut work = scratch.frame();
+let mut words: SVec<&str> = SVec::new_in(&mut work);
+words.extend(["pear", "fig", "apple"]);
+words.sort_unstable();
+let words = words.freeze_into(&mut out); // lives on `keep`; `work` is free
+assert_eq!(&*words, ["apple", "fig", "pear"]);
+```
+
+**A sub-frame.** `sub()` opens a child frame for temporary work; everything
+on it is reclaimed when it ends, and values already on the parent stay.
+
+```rust
+use ordstack::{SVec, Stack};
+
+let mut st = Stack::new();
+let mut f = st.frame();
+let name = f.alloc_str("kept");
+{
+    let mut tmp = f.sub();
+    let mut v: SVec<u32> = SVec::new_in(&mut tmp);
+    v.extend(0..100);
+    assert_eq!(v.iter().sum::<u32>(), 4950);
+}
+assert_eq!(&*name, "kept");
+```
+
 ## What it is and is not
 
 `ordstack` is a typed region arena with a growable top. Frozen blocks are
