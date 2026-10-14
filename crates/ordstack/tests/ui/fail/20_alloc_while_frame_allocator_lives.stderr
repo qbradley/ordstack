@@ -1,0 +1,10 @@
+error[E0499]: cannot borrow `f` as mutable more than once at a time
+ --> tests/ui/fail/20_alloc_while_frame_allocator_lives.rs:8:14
+  |
+6 |     let a = f.allocator();
+  |             - first mutable borrow occurs here
+7 |     let mut v: Vec<u32, _> = Vec::new_in(&a);
+8 |     let _b = f.alloc(1u32); // ERROR
+  |              ^ second mutable borrow occurs here
+9 |     v.push(1);
+  |     - first borrow later used here

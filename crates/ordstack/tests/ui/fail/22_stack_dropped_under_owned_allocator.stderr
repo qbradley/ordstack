@@ -1,0 +1,12 @@
+error[E0505]: cannot move out of `st` because it is borrowed
+ --> tests/ui/fail/22_stack_dropped_under_owned_allocator.rs:8:10
+  |
+4 |     let mut st = Stack::with_reserve(1 << 16);
+  |         ------ binding `st` declared here
+5 |     let mut f = st.frame();
+  |                 -- borrow of `st` occurs here
+...
+8 |     drop(st); // ERROR
+  |          ^^ move out of `st` occurs here
+9 |     v.push(2);
+  |     - borrow later used here
