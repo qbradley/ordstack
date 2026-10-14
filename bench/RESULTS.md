@@ -403,3 +403,36 @@ Each is marked `PORT:` in the ports.
   hardware-counter breakdowns beyond instructions and cycles (cache
   misses, dTLB). Under `perf_event_paranoid` = 1 these were available, but
   were not pre-registered and are not needed for the reading.
+
+## Addendum 2026-10-14: `#[inline]` on the hot paths (0.2a)
+
+Rule, fixed before the runs: keep `#[inline]` if, on every case, the
+ratio of ordstack's median wall time to std's (same run) rises by no more
+than 2% and ordstack's user-mode instructions rise by no more than 2%.
+
+Both runs: `RUNS=15 PERF_RUNS=3`. The `#[inline]` attributes went on
+`Stack::{set_top, reset_to, try_bump, try_extend, ptr_at, offset_of}` and
+`Region::{base, len}`.
+
+| case | ratio before | ratio after | instructions:u before (M) | after (M) | load (before / after) |
+|---|---|---|---|---|---|
+| treebuild-d7 | 0.363 | 0.376 (+3.6%) | 167.5 | 170.0 (+1.5%) | 144 / 152 |
+| treebuild-d8 | 0.359 | 0.365 (+1.7%) | 837.4 | 849.7 (+1.5%) | 144 / 152 |
+| xform-120k | 0.629 | 0.690 (+9.7%) | 1313.0 | 1306.9 (−0.5%) | 144 / 152 |
+| xform-480k | 0.679 | 0.673 (−0.9%) | 5276.0 | 5251.5 (−0.5%) | 144 / 152 |
+
+Load is the 1-minute load average at the start of each run, on 96 cores
+shared with other jobs. Every case except treebuild-d7 (after) exceeded
+the harness's 4% wall-IQR noise bar on all three attempts; the reported
+attempts' worst IQRs were 5.9 / 22.0 / 37.3 / 23.5% before and 3.6 / 15.4
+/ 27.2 / 9.7% after. The wall-time differences are therefore within
+noise. Instructions rose by about 1.5% on the tree-building cases and fell
+by about 0.5% on the serde cases. (An earlier version of this table gave
+the serde cases' parse-phase medians in ms, 120.9 / 482.1 before and
+115.7 / 465.1 after, in place of their instruction counts.)
+
+Decision: reverted. treebuild-d7 and xform-120k broke the wall-time rule,
+and the instruction counts, the noise-robust measure, show no consistent
+gain. Within the crate the compiler can already inline these small
+non-generic functions, so the attribute buys little. Revisit on a quieter
+machine if a profile shows the calls.

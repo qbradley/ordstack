@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 (unreleased)
+
+- `Frame::stack`: read a stack's statistics while frames are alive
+- `Frame::alloc_slice_from_iter`: collect an iterator into a frozen block in place
+- `sformat!`: `format!` into a frozen `SStr` on a frame
+- `IntoIterator` for `&SSlice`, `&mut SSlice`, `&SVec`, `&mut SVec`, `&SFixedVec`, `&mut SFixedVec`, and by value for `SFixedVec` and `SVec` (`iter::VecIntoIter`, which keeps the frame borrowed so the buffer is reclaimed afterwards)
+- Crate docs: *Patterns* now covers phases and choosing a reservation
+
 ## 0.1.0 (unreleased)
 
 - `Stack`, `Frame`

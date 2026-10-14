@@ -189,3 +189,33 @@ impl fmt::Display for SString<'_, '_> {
 }
 
 deref_traits!(['v, 'f] SString<'v, 'f>, str);
+
+/// Formats into a frozen string on a frame, like `format!` on the heap.
+///
+/// The first argument is a `&mut Frame<'f>`; the rest are `format!`'s. The
+/// result is an [`SStr<'f>`](crate::SStr). The string is built in place on
+/// top of the stack and frozen without a copy.
+///
+/// # Panics
+/// If the stack is exhausted, or if a formatting trait implementation
+/// returns an error (as `format!` does). A string that was partly written
+/// when a panic occurred is left to be reclaimed.
+///
+/// # Examples
+/// ```
+/// use ordstack::{Stack, sformat};
+///
+/// let mut st = Stack::with_reserve(1 << 16);
+/// let mut f = st.frame();
+/// let name = sformat!(&mut f, "{}_{}", "node", 7);
+/// assert_eq!(name.as_str(), "node_7");
+/// ```
+#[macro_export]
+macro_rules! sformat {
+    ($frame:expr, $($arg:tt)*) => {{
+        let mut s = $crate::SString::new_in($frame);
+        ::core::fmt::Write::write_fmt(&mut s, ::core::format_args!($($arg)*))
+            .expect("ordstack: a formatting trait implementation returned an error");
+        s.freeze()
+    }};
+}

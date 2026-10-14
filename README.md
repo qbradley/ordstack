@@ -27,6 +27,9 @@ tokens.push(";"); // top again
 assert_eq!(tokens.len(), 5);
 ```
 
+The crate documentation's *Patterns* section shows several stacks,
+children on the same stack, phases, and how to choose a reservation.
+
 ## What it is and is not
 
 `ordstack` is a typed region arena with a growable top. Frozen blocks are

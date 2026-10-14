@@ -1,0 +1,9 @@
+error[E0499]: cannot borrow `f` as mutable more than once at a time
+ --> tests/ui/fail/15_sformat_while_vec_holds_frame.rs:6:23
+  |
+5 |     let mut v: SVec<u32> = SVec::new_in(&mut f);
+  |                                         ------ first mutable borrow occurs here
+6 |     let _s = sformat!(&mut f, "{}", 1); // ERROR
+  |                       ^^^^^^ second mutable borrow occurs here
+7 |     v.push(1);
+  |     - first borrow later used here

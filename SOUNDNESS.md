@@ -24,7 +24,11 @@ speed or memory use, and the crate does not free frozen blocks one by one.
   type never has a buffer.
 - A **frozen block** is the memory behind an `SBox`, `SSlice`, `SStr`,
   `SFixedVec` or `iter::IntoIter`. It carries the brand `'f` of the frame
-  that allocated it.
+  that allocated it. One exception: the `IntoIter<'v, T>` inside an
+  `iter::VecIntoIter` is not a frozen block. Its memory is the consumed
+  vector's unfrozen buffer, at or above `frame.end`; its brand `'v` is the
+  loan of the frame that the `VecIntoIter` holds, so it is covered by B and
+  H3(a), not by E (unsafe row 63).
 - An object's **end** is `0` for the stack, `F.end` for a frame, and as
   above for a container.
 - An object is **live** while safe code can still use it. Using a frame or
@@ -214,7 +218,9 @@ region, and the stack cannot be dropped while anything borrows it
 ### H2. Drop check
 
 `SBox`, `SSlice`, `SFixedVec`, `SVec` and `iter::IntoIter` implement `Drop`
-without `#[may_dangle]`. (`SStr` and `SString` wrap an `SSlice<u8>` and an
+without `#[may_dangle]`; `iter::VecIntoIter` inherits the obligation through
+its `IntoIter<'v, T>` field, so the frame loan `'v` it holds lasts until it
+is dropped, not merely until its last use. (`SStr` and `SString` wrap an `SSlice<u8>` and an
 `SVec<u8>`.) The compiler therefore requires every lifetime in `T`, and the
 brand, to be alive when the handle is dropped. A destructor of `T` that
 reads a frozen block of the same or a lower frame reads memory that is still
@@ -232,8 +238,9 @@ elements.
 
 Re-entrancy. Three different situations, which must not be conflated:
 
-(a) Growable containers. `SVec` and `SString` hold `&mut Frame` for as long
-as they exist, and the methods that run user code (`retain`, `extend`,
+(a) Growable containers. `SVec` and `SString` (and `iter::VecIntoIter`,
+which keeps a consumed vector's frame and runs only element destructors)
+hold `&mut Frame` for as long as they exist, and the methods that run user code (`retain`, `extend`,
 `truncate`, `clear`, `Drop`) borrow the container itself. User code run from
 them cannot name the container in its intermediate state, and cannot reach
 its frame, or any frame beneath it, because those stay mutably borrowed.
@@ -245,8 +252,9 @@ closure before anything is reserved; `alloc_slice_clone` has already raised
 `frame.end` past the whole block when the first `clone` runs, so even a
 panic leaves the frame consistent.
 
-(b) Frozen handles (`SBox`, `SSlice`, `SStr`, `SFixedVec`, `IntoIter`). These
-do not borrow their frame, so an element destructor *can* use the frame that
+(b) Frozen handles (`SBox`, `SSlice`, `SStr`, `SFixedVec`, `IntoIter`; not
+the `IntoIter` inside a `VecIntoIter`, which is (a)). These do not borrow
+their frame, so an element destructor *can* use the frame that
 allocated the very block it sits in (for example through a
 `RefCell<Frame>`), and may call `alloc`, `sub`, `reset_above`, `trim_above`
 or `end_offset` on it. This is sound, and the earlier claim that it was
@@ -313,6 +321,7 @@ frame's fields. `tests/panics.rs` exercises the destructor, `clone`,
 | `SBox<'f, T>`, `SSlice<'f, T>`, `SFixedVec<'f, T>`, `IntoIter<'f, T>` | – | covariant | covariant |
 | `SStr<'f>` | – | covariant | – |
 | `SVec<'v, 'f, T>` | covariant | invariant | covariant |
+| `VecIntoIter<'v, 'f, T>` | covariant | invariant | covariant |
 | `SString<'v, 'f>` | covariant | invariant | – |
 
 `Frame<'f>` holds `&'f Stack`. The frozen handles hold a `NonNull<T>` and
@@ -404,7 +413,7 @@ its `debug_assert!` covers only `off <= top`.
 
 ## Per-function table
 
-One row for each of the 70 public functions (`grep -n "pub fn\|pub const fn"
+One row for each of the 72 public functions (`grep -n "pub fn\|pub const fn"
 crates/ordstack/src/*.rs`), then the trait impls. "Resets" means
 `reset_to(own end)`, justified under "Why reset on reacquire is sound".
 
@@ -430,6 +439,8 @@ crates/ordstack/src/*.rs`), then the trait impls. "Resets" means
 | `Frame::reset_above` | `&mut Frame` | resets |
 | `Frame::trim_above` | `&mut Frame` | resets, then discards whole pages at or above `end`, all unreachable |
 | `Frame::end_offset` | `&Frame` | reads `end` |
+| `Frame::stack` | `&Frame` | returns `&Stack` bounded by the borrow of the frame; through `&Stack` only `capacity`, `extent`, `high_water` and `Debug` are reachable, and they read `Cell`s |
+| `Frame::alloc_slice_from_iter` | `&mut Frame<'f>` | `SVec::from_iter_in` on this frame, then `SVec::freeze`; no code of its own touches the stack |
 | `Frame::alloc_slice_copy` | `&mut Frame<'f>` | block from `try_alloc_array` (resets, bumps, raises `end` past the block: E); filled before the handle exists |
 | `Frame::alloc_slice_clone` | `&mut Frame<'f>` | as above; clones written one by one under a guard (H3) |
 | `Frame::alloc_str` | `&mut Frame<'f>` | `alloc_slice_copy` of the bytes of a `str` |
@@ -506,6 +517,7 @@ crates/ordstack/src/*.rs`), then the trait impls. "Resets" means
 | `SString::split_above` | `&mut SString` | `SVec::split_above`; `&mut str` keeps the bytes UTF-8 |
 | `SString::freeze` | `SString` by value | `SVec::freeze` |
 | `SString::freeze_into` | `SString` by value, `&mut Frame<'g>` | `SVec::freeze_into` |
+| `sformat!` (macro) | `&mut Frame<'f>` | `SString::new_in`, `fmt::Write::write_fmt`, `SString::freeze`; no code of its own touches the stack |
 
 ### `AllocError`
 
@@ -519,16 +531,19 @@ crates/ordstack/src/*.rs`), then the trait impls. "Resets" means
 |---|---|
 | `Deref`, `DerefMut` for `SBox`, `SSlice`, `SFixedVec`, `SVec` | a reference to the initialised values, bounded by the borrow of the handle |
 | `Deref` for `SStr`, `SString` | the same bytes as `str`; they are UTF-8 by construction |
-| `Drop` for `SBox`, `SSlice`, `SFixedVec`, `SVec`, `IntoIter` | drops the owned values (back to front where there are several); never writes `top` or an `end` |
+| `Drop` for `SBox`, `SSlice`, `SFixedVec`, `SVec`, `IntoIter` (and `VecIntoIter` through it) | drops the owned values (back to front where there are several); never writes `top` or an `end` |
 | `Drop` for `Stack` (through `Region`) | unmaps the region; needs the stack unborrowed, so nothing is reachable |
 | `IntoIterator` for `SSlice`; `Iterator`, `DoubleEndedIterator`, `ExactSizeIterator` for `IntoIter` | same block and brand; each value is read out once, tracked by `head` and `tail` |
+| `IntoIterator` for `&SSlice`, `&mut SSlice`, `&SFixedVec`, `&mut SFixedVec`, `&SVec`, `&mut SVec` | `slice::iter` / `iter_mut` through `Deref` / `DerefMut` |
+| `IntoIterator` for `SFixedVec` | `into_slice`, then `SSlice::into_iter` |
+| `IntoIterator` for `SVec`; `Iterator`, `DoubleEndedIterator`, `ExactSizeIterator` for `VecIntoIter` | unsafe row 63; afterwards delegates to `IntoIter`; never writes `top` or an `end`, so the buffer is reclaimed by the next reset of the frame |
 | `Extend<T>` for `SVec`; `Extend<char>`, `Extend<&str>`, `fmt::Write` for `SString` | loops over `push` / `push_str` |
 | `Default`, `Debug` for `Stack` | `Stack::new`; reads three integers |
 | `Debug`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Hash`, `Borrow` (`deref_traits!`); `Display` for `SStr`, `SString`; `Display`, `Error` for `AllocError` | delegate to the `Deref` target through `&self` |
 
 ## Every `unsafe` block
 
-`grep -o "unsafe {" crates/ordstack/src/*.rs` finds 62 blocks: 59 in library
+`grep -o "unsafe {" crates/ordstack/src/*.rs` finds 63 blocks: 60 in library
 code and 3 in the unit tests of `region.rs`. There is one numbered row for
 each, in file order; `scripts/check-unsafe-table.sh`, run by
 `scripts/check.sh`, fails when the two counts differ. "Handle contract" means the safety contract of the
@@ -605,6 +620,7 @@ follow the table. There is no `unsafe impl` and no `unsafe trait`.
 | 60 | `vec.rs` | `Deref::deref` | `slice::from_raw_parts` | B |
 | 61 | `vec.rs` | `DerefMut::deref_mut` | `slice::from_raw_parts_mut` | B; `&mut self` is unique |
 | 62 | `vec.rs` | `Drop::drop` | `drop_back_to_front(ptr, len)` | B; `self.len` was set to 0 first |
+| 63 | `vec.rs` | `IntoIterator::into_iter` (`SVec` → `VecIntoIter`) | `SSlice::from_raw_parts(ptr, len)` with brand `'v` | B for `len` values; the buffer lies at or above `frame.end`, and `VecIntoIter` holds `&'v mut Frame<'f>` for as long as the slice iterator inside it exists, so neither this frame nor any object beneath it can reset (I); the slice iterator is dropped first (field order) |
 
 The `unsafe fn` contracts:
 
@@ -626,7 +642,7 @@ is meant for a large machine.
   `clippy::undocumented_unsafe_blocks` denied.
 - The test suite on stable, debug and release, including the doctests of the
   crate documentation and of `README.md`.
-- **Compile-fail tests.** 14 cases in `tests/ui/fail`, one per rejection the
+- **Compile-fail tests.** 16 cases in `tests/ui/fail`, one per rejection the
   guarantee depends on, each with a compiling twin in `tests/ui/pass` that
   differs only in the offending line. The twins are generated by
   `scripts/gen-ui-pass.sh`; `check.sh` regenerates them and fails if they
@@ -666,8 +682,9 @@ is meant for a large machine.
   a use of reclaimed memory inside the region. That is what the debug shadow
   and the model's content checks are for.
 - The property test and fuzzer explore one element type and one thread.
-  `SFixedVec`, `SString`, allocation failure, `Stack::reset` and
-  `Stack::trim` are outside the interpreter and are covered only by the
+  `SFixedVec`, `SString`, `sformat!`, `Frame::alloc_slice_from_iter`, by-value
+  iteration of an `SVec` (`VecIntoIter`), allocation failure, `Stack::reset`
+  and `Stack::trim` are outside the interpreter and are covered only by the
   hand-written tests.
 - The compile-fail tests show that particular programs are rejected. They
   are examples of I, not a proof of it.

@@ -7,6 +7,7 @@ use crate::boxed::SBox;
 use crate::error::{AllocError, AllocErrorKind, fail};
 use crate::slice::{SSlice, SStr, drop_back_to_front};
 use crate::stack::Stack;
+use crate::vec::SVec;
 
 /// An allocation cursor above some lower object.
 ///
@@ -85,6 +86,52 @@ impl<'f> Frame<'f> {
     /// frame has allocated lies below it.
     pub fn end_offset(&self) -> usize {
         self.end
+    }
+
+    /// The stack this frame allocates from, for reading its statistics
+    /// ([`Stack::extent`], [`Stack::high_water`], [`Stack::capacity`]) while
+    /// frames and blocks are alive. They describe the whole stack, not this
+    /// frame.
+    ///
+    /// # Examples
+    /// ```
+    /// use ordstack::Stack;
+    ///
+    /// let mut st = Stack::with_reserve(1 << 16);
+    /// let mut f = st.frame();
+    /// let _a = f.alloc([0u8; 100]);
+    /// assert_eq!(f.stack().extent(), 100);
+    /// ```
+    pub fn stack(&self) -> &Stack {
+        self.st
+    }
+
+    /// Collects `iter` into a frozen block. The elements are collected in
+    /// place on top of the stack and frozen without a copy, so the length
+    /// need not be known in advance.
+    ///
+    /// The iterator cannot allocate from this frame, which is borrowed while
+    /// it runs.
+    ///
+    /// # Panics
+    /// If the stack is exhausted, the capacity overflows, or a non-zero-size
+    /// `T` has alignment above 4096. The elements collected so far are
+    /// dropped.
+    ///
+    /// # Examples
+    /// ```
+    /// use ordstack::Stack;
+    ///
+    /// let mut st = Stack::with_reserve(1 << 16);
+    /// let mut f = st.frame();
+    /// let s = f.alloc_slice_from_iter((1..=3u32).map(|x| x * x));
+    /// assert_eq!(&*s, [1, 4, 9]);
+    /// ```
+    pub fn alloc_slice_from_iter<T, I: IntoIterator<Item = T>>(
+        &mut self,
+        iter: I,
+    ) -> SSlice<'f, T> {
+        SVec::from_iter_in(iter, self).freeze()
     }
 
     /// An uninitialised block for `n` values of `T`, owned by this frame.

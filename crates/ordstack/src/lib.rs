@@ -70,7 +70,8 @@
 //! owning handles to blocks that never move or grow. They are branded with
 //! the frame's lifetime, so several can sit side by side and outlive the
 //! `&mut` borrow that allocated them. [`SVec::freeze`] turns a growable
-//! vector into a frozen slice without copying.
+//! vector into a frozen slice without copying. [`sformat!`] formats into an
+//! [`SStr`] the way `format!` formats into a `String`.
 //!
 //! ```
 //! use ordstack::{SString, Stack};
@@ -187,6 +188,51 @@
 //! assert_eq!(root.kids[1].kids[0].depth, 0);
 //! ```
 //!
+//! **Phases.** A program that builds data, consumes it, and builds
+//! something else can reuse one stack for each phase. Consuming a vector by
+//! value keeps its frame borrowed, so its buffer is reclaimed afterwards;
+//! blocks that were frozen stay until their frame's parent is reused, and
+//! [`Stack::reset`] reclaims everything at once ([`Stack::trim`] also
+//! returns the pages to the operating system).
+//!
+//! ```
+//! use ordstack::{SVec, Stack};
+//!
+//! let mut st = Stack::with_reserve(1 << 20);
+//! let total: u64 = {
+//!     let mut f = st.frame();
+//!     let mut parsed: SVec<u64> = SVec::new_in(&mut f);
+//!     parsed.extend(0..1000);
+//!     parsed.into_iter().sum() // the buffer is reclaimable from here
+//! };
+//! assert!(st.high_water() >= 8000);
+//! st.reset(); // next phase starts from an empty stack
+//! let mut f = st.frame();
+//! let out = f.alloc(total);
+//! assert_eq!(*out, 499_500);
+//! assert_eq!(f.stack().extent(), 8);
+//! ```
+//!
+//! **Choosing a reservation.** [`Stack::new`] reserves
+//! [`DEFAULT_RESERVE`] bytes of address space (4 GiB on 64-bit targets).
+//! Pages are committed only when touched, so on 64-bit Linux a large
+//! reservation costs nothing until it is used. Under an address-space
+//! limit (`ulimit -v`), with several stacks, or under Miri (where a
+//! reservation is a real heap allocation), use [`Stack::with_reserve`] with
+//! a size close to the expected [`high_water`](Stack::high_water):
+//!
+//! ```
+//! use ordstack::Stack;
+//!
+//! // Small sizes so the example also runs under Miri.
+//! let mut results = Stack::with_reserve(1 << 20);
+//! let mut scratch = Stack::with_reserve(1 << 16);
+//! let (mut out, mut tmp) = (results.frame(), scratch.frame());
+//! let _a = out.alloc(1u32);
+//! let _b = tmp.alloc(2u32);
+//! assert!(out.stack().capacity() >= 1 << 20);
+//! ```
+//!
 //! # Limits
 //!
 //! - A struct cannot hold a growable container together with the frame it
@@ -237,6 +283,7 @@ pub use vec::SVec;
 /// Iterator types.
 pub mod iter {
     pub use crate::slice::IntoIter;
+    pub use crate::vec::VecIntoIter;
 }
 
 /// Runs the README's examples as doctests.
