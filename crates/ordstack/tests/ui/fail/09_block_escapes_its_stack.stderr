@@ -1,0 +1,12 @@
+error[E0597]: `st` does not live long enough
+ --> tests/ui/fail/09_block_escapes_its_stack.rs:6:17
+  |
+5 |         let mut st = Stack::with_reserve(1 << 16);
+  |             ------ binding `st` declared here
+6 |         let b = st.frame().alloc(5u32);
+  |                 ^^ borrowed value does not live long enough
+7 |         keep.push(b); // ERROR
+8 |     }
+  |     - `st` dropped here while still borrowed
+9 |     assert!(keep.len() <= 1);
+  |             ---- borrow later used here

@@ -16,9 +16,11 @@ rule enforced at compile time rather than tested at run time.
 1. only the top block is ever grown, and it grows in place;
 2. memory is reclaimed only when no live value can reach it.
 
-Because of (1) and (2) the allocator keeps no per-block header, performs no
-"is this block on top?" test in release builds, never copies a block in order
-to grow it, and never strands a block beneath a live one.
+Because of (1) and (2) the allocator keeps no per-block header, never copies a
+block in order to grow it, and never abandons a buffer because it had to grow
+from beneath another block. Growth asserts in every build that the block being
+grown is the top one; the borrow rules make that assertion unreachable from
+safe code.
 
 **What it is not.** It is a typed region arena with a growable top. Frozen
 blocks have no individual free; they are reclaimed in bulk when their frame is
@@ -266,8 +268,9 @@ with `kind()` returning `Exhausted`, `CapacityOverflow`, `AlignTooLarge` or
 - Every infallible allocating method panics on any of these. The fallible
   counterparts in 0.1 are `try_with_reserve`, `try_alloc`, `try_push` and
   `try_reserve`; reserving first makes any later push infallible.
-- A failed allocation changes nothing: `top`, the container's length and its
-  capacity are as before.
+- A failed allocation changes no object: lengths, capacities, pointers and
+  frame ends are as before. `top` may already have been lowered by the lazy
+  reset that precedes the step that can fail.
 - All size arithmetic is checked.
 
 ## 5. Memory
@@ -329,7 +332,8 @@ ordstack/
   `trybuild`, `proptest`, `libfuzzer-sys`.
 - **Toolchain.** Edition 2024, MSRV 1.85, stable only. Nightly is used only
   to run Miri, AddressSanitizer and the fuzzer.
-- **Platforms.** Linux and macOS, 64-bit, tested. Other Unix targets compile
+- **Platforms.** Linux, 64-bit, tested; macOS is intended to work but is not
+  yet tested. Other Unix targets compile
   on a best-effort basis. Non-Unix targets fail with a `compile_error!` that
   names the limitation.
 - **License.** `MIT OR Apache-2.0`.

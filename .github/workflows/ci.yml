@@ -1,0 +1,72 @@
+name: ci
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        toolchain: [stable, "1.85"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: clippy, rustfmt
+      - run: cargo fmt --all --check
+        if: matrix.toolchain == 'stable'
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+        if: matrix.toolchain == 'stable'
+      - run: scripts/check-unsafe-table.sh
+      - run: cargo test --workspace
+      - run: cargo test --workspace --release
+      - run: cargo doc --workspace --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings
+  ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.85"
+      - run: scripts/gen-ui-pass.sh
+      - name: ui twins are current
+        run: |
+          if [ -n "$(git status --porcelain -- crates/ordstack/tests/ui/pass)" ]; then
+            git status --short -- crates/ordstack/tests/ui/pass
+            git diff -- crates/ordstack/tests/ui/pass
+            echo "the committed passing twins are stale" >&2
+            exit 1
+          fi
+      - run: cargo test -p ordstack --test ui
+        env:
+          ORDSTACK_UI: "1"
+  miri:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        flags: ["", "-Zmiri-tree-borrows"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri
+      - run: cargo miri test -p ordstack
+        env:
+          MIRIFLAGS: ${{ matrix.flags }}
+  sanitizer-and-fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rust-src
+      - run: cargo test -p ordstack --tests -Zbuild-std --target x86_64-unknown-linux-gnu
+        env:
+          RUSTFLAGS: -Zsanitizer=address
+      - run: cargo install cargo-fuzz --locked
+      - run: cargo fuzz run model -- -max_total_time=120 -max_len=4096
+        working-directory: crates/ordstack

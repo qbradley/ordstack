@@ -1,0 +1,10 @@
+error[E0499]: cannot borrow `f` as mutable more than once at a time
+  --> tests/ui/fail/12_manually_drop_split_above.rs:10:20
+   |
+6  |     let mut lower = ManuallyDrop::new(SVec::<Option<SBox<u32>>>::new_in(&mut f));
+   |                                                                         ------ first mutable borrow occurs here
+...
+10 |     let _clobber = f.alloc([0u8; 64]); // ERROR
+   |                    ^ second mutable borrow occurs here
+11 |     assert_eq!(**elems[0].as_ref().unwrap(), 7);
+   |                  -------- first borrow later used here
