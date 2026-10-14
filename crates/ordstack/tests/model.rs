@@ -74,3 +74,19 @@ fn fixed_script_sub_scope() {
     // inside a descended level, then an ordinary freeze.
     model::run(&[0, 0, 20, 0, 20, 3, 11, 0, 20, 1, 20, 255, 12, 13, 20, 2]);
 }
+
+#[test]
+fn fixed_script_map() {
+    // Each map starts with op 24 and ends with op 7 (`7 % 8`) and its mode.
+    // 1: insert keys 1, 2, 33 (= 1: replaces), entry 2 (present), entry 3,
+    //    box above, swap_remove 1, shift_remove 40 (absent); drop the map.
+    // 2: insert 5, 6, 7, shift_remove 5; freeze.
+    // 3: insert 9, 10; freeze_into the scratch frame.
+    // 4: at depth 1, insert 4; the script ends inside the map.
+    model::run(&[
+        0, 24, 0, 1, 1, 2, 2, 33, 5, 2, 5, 3, 6, 3, 1, 4, 40, 7, 0, //
+        24, 0, 5, 0, 6, 0, 7, 4, 5, 7, 1, //
+        24, 0, 9, 0, 10, 7, 2, //
+        0, 11, 0, 24, 0, 4,
+    ]);
+}

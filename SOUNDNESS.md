@@ -18,12 +18,15 @@ speed or memory use, and the crate does not free frozen blocks one by one.
 - A **frame** `F` has an offset `F.end`. It is created by mutably borrowing a
   **parent**: the stack, another frame, or a growable container. Its
   **start** is the parent's end at that moment.
-- A **growable container** `V` (`SVec`, and `SString`, which wraps an
-  `SVec<u8>`) holds `&'v mut Frame<'f>`. Its **end** is its buffer's capacity
-  end, or the frame's `end` while it has no buffer. A vector of a zero-size
-  type never has a buffer.
+- A **growable container** `V` (`SVec`; `SString`, which wraps an
+  `SVec<u8>`; and `SMap`) holds `&'v mut Frame<'f>`. Its **end** is its
+  buffer's capacity end, or the frame's `end` while it has no buffer. A
+  vector of a zero-size type never has a buffer. A map's buffer is its
+  block: `usable(slots)` entries of `E = size_of::<Bucket<K, V>>()` bytes
+  followed by `slots` index slots of 4 bytes, so its end is
+  `start + usable(slots) * E + slots * 4`.
 - A **frozen block** is the memory behind an `SBox`, `SSlice`, `SStr`,
-  `SFixedVec` or `iter::IntoIter`. It carries the brand `'f` of the frame
+  `SFixedVec`, `SFrozenMap` or `iter::IntoIter`. It carries the brand `'f` of the frame
   that allocated it. One exception: the `IntoIter<'v, T>` inside an
   `iter::VecIntoIter` is not a frozen block. Its memory is the consumed
   vector's unfrozen buffer, at or above `frame.end`; its brand `'v` is the
@@ -51,6 +54,16 @@ branded by `F` lies in `[F.start, F.end)`.
 **B (buffer).** A container's buffer lies in `[frame.end, V.end)` and holds
 `len` initialised values at its start.
 
+**M (map block).** For an `SMap` with `slots > 0`: B holds for its block,
+the first `len` entries are initialised, `len <= usable(slots)`, and the
+`slots` index slots after the first `usable(slots)` entries are
+initialised `u32`s. With `slots == 0` the map has no block, `len == 0`
+and `ptr` is dangling and aligned. Which entries the slots name is a
+correctness property only: slot values are used as indices into a slice
+of length `len`, which is bounds-checked, and every probe is bounded by
+`slots`, so a wrong index gives wrong answers or a panic, never undefined
+behaviour. For an `SFrozenMap`, its block holds `len` initialised entries followed directly by `slots` initialised index slots, and is a frozen block (E); empty, it has no block and a dangling, aligned `ptr`.
+
 ## Why I holds
 
 The only ways to obtain a pointer above an object's end are:
@@ -59,13 +72,14 @@ The only ways to obtain a pointer above an object's end are:
 |---|---|---|
 | `Stack::frame(&'a mut self)` | `Frame<'a>` | the stack, for `'a` |
 | `Frame::sub(&'a mut self)` | `Frame<'a>` | the frame, for `'a` |
-| `SVec::above(&'a mut self)`, `SString::above` | `Frame<'a>` | the container, for `'a` |
+| `SVec::above(&'a mut self)`, `SString::above`, `SMap::above` | `Frame<'a>` | the container, for `'a` |
 | `SVec::split_above(&'a mut self)`, `SString::split_above` | `Frame<'a>` (and `&'a mut [T]` / `&'a mut str`, which points below the container's end) | the container, for `'a` |
-| `SVec::new_in(&'v mut Frame<'a>)`, `with_capacity_in`, `from_iter_in`, and the `SString` constructors | `SVec<'v, 'a, T>` / `SString<'v, 'a>` | the frame, for `'v`; `'a` already borrows the frame's parent |
-| `Frame<'a>::alloc`, `try_alloc`, `alloc_with`, `alloc_slice_copy`, `alloc_slice_clone`, `alloc_str`, `SFixedVec::with_capacity_in` | handle branded `'a` | nothing new: `'a` already borrows the parent. The block is below the frame's own end, so I asks nothing about the frame |
-| `SVec<'v, 'a, T>::freeze`, `SString::freeze` | `SSlice<'a, T>` / `SStr<'a>` | nothing new |
-| `SVec::freeze_into(self, &mut Frame<'g>)`, `SString::freeze_into` | `SSlice<'g, T>` / `SStr<'g>` | nothing new: `'g` already borrows the destination's parent |
-| `SFixedVec::into_slice`, `SSlice::into_iter` | same brand as the input | nothing new |
+| `SVec::new_in(&'v mut Frame<'a>)`, `with_capacity_in`, `from_iter_in`, the `SString` constructors (and `sformat!`, which calls one), and the `SMap` constructors (`new_in`, `with_capacity_in`, `with_hasher_in`, `with_capacity_and_hasher_in`) | `SVec<'v, 'a, T>` / `SString<'v, 'a>` / `SMap<'v, 'a, K, V, S>` | the frame, for `'v`; `'a` already borrows the frame's parent |
+| `SVec<'v, 'a, T>::into_iter` (by value) | `VecIntoIter<'v, 'a, T>`, which keeps the frame borrow | the frame, for `'v`, as the vector did |
+| `Frame<'a>::alloc`, `try_alloc`, `alloc_with`, `alloc_slice_copy`, `alloc_slice_clone`, `alloc_slice_from_iter`, `alloc_str`, `SFixedVec::with_capacity_in` | handle branded `'a` | nothing new: `'a` already borrows the parent. The block is below the frame's own end, so I asks nothing about the frame |
+| `SVec<'v, 'a, T>::freeze`, `SString::freeze`, `SMap::freeze` | `SSlice<'a, T>` / `SStr<'a>` / `SFrozenMap<'a, K, V, S>` | nothing new |
+| `SVec::freeze_into(self, &mut Frame<'g>)`, `SString::freeze_into`, `SMap::freeze_into` | `SSlice<'g, T>` / `SStr<'g>` / `SFrozenMap<'g, K, V, S>` | nothing new: `'g` already borrows the destination's parent |
+| `SFixedVec::into_slice`, `SFixedVec::into_iter`, `SSlice::into_iter` | same brand as the input | nothing new |
 | `SBox::leak`, `SSlice::leak`, `SStr::leak` | `&'a mut` | nothing new |
 | `Deref` / `DerefMut` on any handle | a reference bounded by the borrow of the handle | the handle, whose type carries the brand |
 
@@ -82,7 +96,8 @@ function turns an integer back into a pointer.
 raise it, and by `reset_to`, which lowers it. Raising `top` cannot break T.
 The callers that create or enlarge an object set its end to at most the new
 `top`: `Frame::try_alloc_array` sets `end` to the end of the block just
-bumped, and `SVec::try_grow_to` sets the capacity whose end is the new `top`.
+bumped, and `SVec::try_grow_to` and `SMap::try_grow_to` set the capacity
+whose end is the new `top`.
 
 `reset_to(off)` is called only by a method that holds `&mut` (or ownership)
 of an object `X`, with `off` equal to `X`'s end as it is after the call. With
@@ -101,6 +116,9 @@ The call sites, all of them:
 | `SVec::shrink_to_fit`, `len == 0` | `frame.end` | `frame.end`: the buffer is given up, `cap := 0` |
 | `SVec::freeze`, `len > 0` | buffer start + `len` elements | the vector is consumed; `frame.end := off` |
 | `SVec::freeze`, `len == 0`, buffer allocated | `frame.end` | the vector is consumed; `frame.end` unchanged |
+| `SMap::try_grow_to`, `above` | the map's block end | unchanged (then raised by a successful growth) |
+| `SMap::freeze`, `len > 0` | block start + `len` entries + the compact index | the map is consumed; `frame.end := off` |
+| `SMap::freeze`, `len == 0`, block allocated | `frame.end` | the map is consumed; `frame.end` unchanged |
 
 `reset_to` checks `off <= top` with a `debug_assert!` and does nothing when
 `top` is already at or below `off`.
@@ -165,11 +183,13 @@ the stack, is mutably borrowed for at least `F`'s brand. So the block is
 neither reclaimed nor unmapped while the brand is alive. `F` itself never
 resets below its own `end`.
 
-E holds because `F.end` is written in two places. `try_alloc_array` sets it
-to the end of a block bumped at or above the old `end`. `SVec::freeze` sets
-it to the end of the vector's initialised elements, which by B is above the
-old `end`; `freeze` of a vector with no elements or no buffer leaves it
-unchanged.
+E holds because `F.end` is written in three places. `try_alloc_array` sets
+it to the end of a block bumped at or above the old `end`. `SVec::freeze`
+sets it to the end of the vector's initialised elements, which by B is above
+the old `end`; `freeze` of a vector with no elements or no buffer leaves it
+unchanged. `SMap::freeze` sets it to the end of the compacted block (the
+entries and the new index), which lies inside the map's block and so, by B,
+above the old `end`; `freeze` of a map with no entries leaves it unchanged.
 
 Blocks do not overlap: `try_alloc_array` resets `top` to `F.end` (above
 every earlier block of `F`) and bumps from there; a vector's buffer is
@@ -233,12 +253,14 @@ a block from a frame above it.
 User code runs inside the library in: element destructors, `Clone::clone`
 (`alloc_slice_clone`), iterators (`Extend::extend`, `from_iter_in`, the
 `SString` `Extend` impls), the `retain` predicate, the `alloc_with` closure,
-and the comparison, hashing and formatting impls that delegate to the
-elements.
+the comparison, hashing and formatting impls that delegate to the
+elements, the `Hash` and `Eq` impls of map keys and the `BuildHasher` of a map
+(`SMap::insert`, every lookup and keyed removal, `entry`), `Extend` for `SMap`,
+and the `or_insert_with` closure.
 
 Re-entrancy. Three different situations, which must not be conflated:
 
-(a) Growable containers. `SVec` and `SString` (and `iter::VecIntoIter`,
+(a) Growable containers. `SVec`, `SString` and `SMap` (and `iter::VecIntoIter`,
 which keeps a consumed vector's frame and runs only element destructors)
 hold `&mut Frame` for as long as they exist, and the methods that run user code (`retain`, `extend`,
 `truncate`, `clear`, `Drop`) borrow the container itself. User code run from
@@ -250,9 +272,9 @@ callee cannot reach that frame either (a `RefCell<Frame>` does not help,
 since the caller already holds its `borrow_mut`). `alloc_with` runs the
 closure before anything is reserved; `alloc_slice_clone` has already raised
 `frame.end` past the whole block when the first `clone` runs, so even a
-panic leaves the frame consistent.
+panic leaves the frame consistent. `SMap` runs the hasher, `Hash` and `Eq` before it changes anything (`insert` and `entry` hash and probe first; `push` then runs no user code), and its growth rebuilds the index from stored hashes, so no user code runs while the index is being rebuilt.
 
-(b) Frozen handles (`SBox`, `SSlice`, `SStr`, `SFixedVec`, `IntoIter`; not
+(b) Frozen handles (`SBox`, `SSlice`, `SStr`, `SFixedVec`, `SFrozenMap`, `IntoIter`; not
 the `IntoIter` inside a `VecIntoIter`, which is (a)). These do not borrow
 their frame, so an element destructor *can* use the frame that
 allocated the very block it sits in (for example through a
@@ -278,6 +300,8 @@ only at or above `frame.end`:
 - `mem::swap`, `mem::replace` and `Option::take` on the frame value move the
   stack reference and `end` together, so each frame still resets only to its
   own `end` on its own stack.
+
+A frozen map's lookups run the hasher, `Hash` and `Eq`, which may therefore use the map's own frame; the map's block lies below `frame.end` like any frozen block. `tests/map.rs::a_hash_that_uses_the_frame_cannot_disturb_a_frozen_map` runs allocation, `reset_above` and `trim_above` from a key's `Hash` during lookups, under Miri as well.
 
 This follows from `frame.rs`, `stack.rs`, `vec.rs` and `region.rs`. (`SStr`
 is listed for completeness; it holds bytes and runs no user code.) A destructor
@@ -307,6 +331,11 @@ state: nothing in them is mid-update.
 | `retain`, destructor of a rejected element | as above, with the read position already past the element | as above; the element is not dropped twice |
 | `alloc_with` | nothing reserved: the closure runs before the allocation | nothing to undo |
 | `freeze_into` when the destination is exhausted (the panic is the library's own) | the source vector is intact | the vector is dropped with its elements |
+| `SMap::insert`, lookups, `swap_remove`, `shift_remove` (hasher, `Hash`, `Eq`) | nothing changed yet: the key is hashed and the index probed before any write | nothing to undo |
+| `SMap::clear`, `Drop` for `SMap` (entry destructors) | `len := 0` and, for `clear`, the index already emptied | `drop_back_to_front`'s guard drops the rest; the map is empty and consistent |
+| `Extend` for `SMap` | map consistent between inserts | entries inserted so far remain |
+| `SMap::freeze_into` when the destination is exhausted | the source map is intact | the map is dropped with its entries |
+| `Entry::or_insert_with` closure | the key was probed and found absent; nothing reserved yet | nothing to undo; the key is dropped with the entry |
 
 In every case `top` and every `end` are consistent, because user code never
 runs between a change to `top` and the matching change to a container's or
@@ -323,13 +352,17 @@ frame's fields. `tests/panics.rs` exercises the destructor, `clone`,
 | `SVec<'v, 'f, T>` | covariant | invariant | covariant |
 | `VecIntoIter<'v, 'f, T>` | covariant | invariant | covariant |
 | `SString<'v, 'f>` | covariant | invariant | – |
+| `SMap<'v, 'f, K, V, S>` | covariant | invariant | covariant in `K`, `V`, `S` |
+| `SFrozenMap<'f, K, V, S>` | – | covariant | covariant in `K`, `V`, `S` |
+| `map::Iter<'a, K, V>`, `Keys`, `Values` | – | – | covariant in `K`, `V` (they wrap `slice::Iter`) |
+| `map::IterMut<'a, K, V>`, `ValuesMut` | – | – | invariant in `K`, `V` (they wrap `slice::IterMut`) |
 
 `Frame<'f>` holds `&'f Stack`. The frozen handles hold a `NonNull<T>` and
-`PhantomData<(&'f (), T)>`. Shortening a brand is sound (the block is valid
+`PhantomData<(&'f (), T)>` (`SFrozenMap` holds `PhantomData<(&'f (), Bucket<K, V>)>`). Shortening a brand is sound (the block is valid
 for the longer lifetime). `SVec` must be invariant in `'f` because it holds
 `&mut Frame<'f>` and `freeze` returns that brand; it gets this from the
 reference `&'v mut Frame<'f>`. Covariance in `T` is the same as `Vec<T>`'s
-and `Box<T>`'s: the handles own their values.
+and `Box<T>`'s: the handles own their values. `SMap` gets its invariance in `'f` the same way as `SVec`, from `&'v mut Frame<'f>`; it owns its entries (`PhantomData<Bucket<K, V>>`).
 
 ### H5. Swapping frames
 
@@ -369,6 +402,11 @@ is a heap block requested with alignment 4096. A zero-length region uses the
 address 4096 as a base that is never dereferenced, because every non-zero
 request on it fails.
 
+A map entry is never zero-size and its alignment is at least that of
+`u64` (8, or 4 on some 32-bit targets), because it holds the `u64` hash; so a map of zero-size keys and values still bumps a
+real block, and the index that follows `n` entries is 4-aligned. An entry
+whose `K` or `V` needs alignment above 4096 fails with `AlignTooLarge`.
+
 ### H7. Arithmetic
 
 Every size computation that can overflow is checked (`checked_mul`,
@@ -379,7 +417,7 @@ most `isize::MAX` minus one page, so every block satisfies the size limit of
 `slice::from_raw_parts`. Offsets within a live buffer
 (`cap * size_of::<T>()`, `len * size_of::<T>()`) cannot overflow because the
 buffer exists. `Stack::ptr_at` checks `off <= region length` with an
-`assert!` in every build before it does pointer arithmetic.
+`assert!` in every build before it does pointer arithmetic. For maps, `slots_for` refuses more than `u32::MAX - 1` entries and doubles with `checked_mul`; `block_bytes` multiplies and adds with `checked_*`; the new end in `try_grow_to` is a `checked_add`. `usable(slots) * E + slots * 4` for an existing block, and the compacted size in `freeze` (which is smaller), cannot overflow because the block exists. An entry index plus one fits a `u32` because `len <= u32::MAX - 1`: `capacity()` is capped at that limit even when the largest index has room for more, so a push past it reaches `slots_for`, which refuses it (unit test `the_entry_limit_holds_with_spare_capacity`).
 
 ### H8. Threads
 
@@ -413,7 +451,7 @@ its `debug_assert!` covers only `off <= top`.
 
 ## Per-function table
 
-One row for each of the 72 public functions (`grep -n "pub fn\|pub const fn"
+One row for each of the 128 public functions (`grep -n "pub fn\|pub const fn"
 crates/ordstack/src/*.rs`), then the trait impls. "Resets" means
 `reset_to(own end)`, justified under "Why reset on reacquire is sound".
 
@@ -519,6 +557,72 @@ crates/ordstack/src/*.rs`), then the trait impls. "Resets" means
 | `SString::freeze_into` | `SString` by value, `&mut Frame<'g>` | `SVec::freeze_into` |
 | `sformat!` (macro) | `&mut Frame<'f>` | `SString::new_in`, `fmt::Write::write_fmt`, `SString::freeze`; no code of its own touches the stack |
 
+### `SMap`
+
+| Function | Takes | Preserves I, T, E, B, M because |
+|---|---|---|
+| `SMap::new_in` | `&'v mut Frame<'f>` | `with_hasher_in` with a fresh `RandomState` |
+| `SMap::with_capacity_in` | `&'v mut Frame<'f>` | `with_capacity_and_hasher_in` with a fresh `RandomState` |
+| `SMap::with_hasher_in` | `&'v mut Frame<'f>` | no block; end is `frame.end`; holds the frame for `'v` |
+| `SMap::with_capacity_and_hasher_in` | `&'v mut Frame<'f>` | `with_hasher_in`, then `reserve` |
+| `SMap::len` | `&SMap` | reads `len` |
+| `SMap::is_empty` | `&SMap` | reads `len` |
+| `SMap::capacity` | `&SMap` | reads `slots`; at most `u32::MAX - 1` |
+| `SMap::hasher` | `&SMap` | a shared reference to the hasher |
+| `SMap::reserve` | `&mut SMap` | `try_reserve`, panicking on error |
+| `SMap::try_reserve` | `&mut SMap` | grows only through `try_grow_to`: resets to its own end, then bumps (no block yet) or extends at `top` (B, T); entries never move; the index is zeroed and rebuilt from stored hashes by safe code (M); no user code; on error no field changes |
+| `SMap::get_index` | `&SMap` | bounds-checked read through `parts` |
+| `SMap::get_index_mut` | `&mut SMap` | bounds-checked; the key stays shared, so the index stays right |
+| `SMap::swap_remove_index` | `&mut SMap` | edits slots with bounds-checked indexing, swaps two entries, then `pop_bucket` lowers `len` before reading the last entry out; never touches the stack; no user code |
+| `SMap::shift_remove_index` | `&mut SMap` | as `swap_remove_index`, with a rotation of `[index, len)` |
+| `SMap::iter` | `&SMap` | slice iterator over `parts`, bounded by the borrow of the map |
+| `SMap::iter_mut` | `&mut SMap` | slice iterator over `parts_mut`; keys stay shared |
+| `SMap::keys` | `&SMap` | `iter` |
+| `SMap::values` | `&SMap` | `iter` |
+| `SMap::values_mut` | `&mut SMap` | `iter_mut` |
+| `SMap::clear` | `&mut SMap` | `len := 0` and the index emptied, then the entries dropped back to front (H3); keeps the block |
+| `SMap::above` | `&mut SMap` | as `SVec::above`: resets to the map's end; the new frame starts there and borrows the map |
+| `SMap::insert` | `&mut SMap` | hashes and probes first (H3); then replaces a value in place, or `reserve(1)` and writes entry `len < capacity` (M) and records its slot |
+| `SMap::get_index_of` | `&SMap` | hashes and probes through shared references (H3(c)) |
+| `SMap::get` | `&SMap` | `get_index_of`, then a bounds-checked read |
+| `SMap::get_mut` | `&mut SMap` | `get_index_of`, then a bounds-checked write access to the value |
+| `SMap::contains_key` | `&SMap` | `get_index_of` |
+| `SMap::swap_remove` | `&mut SMap` | `get_index_of`, then `swap_remove_index` |
+| `SMap::shift_remove` | `&mut SMap` | `get_index_of`, then `shift_remove_index` |
+| `SMap::entry` | `&mut SMap` | hashes and probes before returning (H3); the entry borrows the map mutably, so nothing changes the map while it exists |
+| `Entry::key` | `&Entry` | reads the key |
+| `Entry::or_insert` | `Entry` by value | `OccupiedEntry::into_mut` or `VacantEntry::insert` |
+| `Entry::or_insert_with` | `Entry` by value | runs `f` before anything is reserved (H3), then `VacantEntry::insert` |
+| `Entry::or_default` | `Entry` by value | `or_insert_with(V::default)` |
+| `OccupiedEntry::key` | `&OccupiedEntry` | bounds-checked read; the index was found while the map has been borrowed since |
+| `OccupiedEntry::index` | `&OccupiedEntry` | reads the index |
+| `OccupiedEntry::get` | `&OccupiedEntry` | as `key` |
+| `OccupiedEntry::get_mut` | `&mut OccupiedEntry` | as `key`, through `parts_mut` |
+| `OccupiedEntry::into_mut` | `OccupiedEntry` by value | as `get_mut`, for the map borrow `'a` |
+| `VacantEntry::key` | `&VacantEntry` | reads the key |
+| `VacantEntry::insert` | `VacantEntry` by value | `push` with the hash computed by `entry`: `reserve(1)`, write entry `len`, record its slot; no user code between the probe and the push |
+| `SMap::freeze` | `SMap` by value | compacts in place: the new index (`slots_for(len) <= slots` slots) is written inside the old block right after the entries; lowers `top` to its end and raises `frame.end` to the same offset (E); returns the brand `'f`. With no block: an empty map and nothing touched; with a block but no entries: `reset_to(frame.end)` gives the block back |
+| `SMap::freeze_into` | `SMap` by value, `&mut Frame<'g>` | as `SVec::freeze_into`: block from `dst.try_alloc_array`, one bitwise copy of the entries, source `len := 0` so each entry is owned once, index built in the new block; `dst` is on another stack by the chain property |
+
+### `SFrozenMap`
+
+| Function | Takes | Preserves I, T, E, B, M because |
+|---|---|---|
+| `SFrozenMap::len` | `&SFrozenMap` | reads `len` |
+| `SFrozenMap::is_empty` | `&SFrozenMap` | reads `len` |
+| `SFrozenMap::hasher` | `&SFrozenMap` | a shared reference to the hasher |
+| `SFrozenMap::get_index` | `&SFrozenMap` | bounds-checked read through `parts` |
+| `SFrozenMap::get_index_mut` | `&mut SFrozenMap` | bounds-checked; the key stays shared |
+| `SFrozenMap::iter` | `&SFrozenMap` | slice iterator over `parts` |
+| `SFrozenMap::iter_mut` | `&mut SFrozenMap` | slice iterator over `parts_mut`; keys stay shared |
+| `SFrozenMap::keys` | `&SFrozenMap` | `iter` |
+| `SFrozenMap::values` | `&SFrozenMap` | `iter` |
+| `SFrozenMap::values_mut` | `&mut SFrozenMap` | `iter_mut` |
+| `SFrozenMap::get_index_of` | `&SFrozenMap` | hashes and probes through shared references; the user code may use the frame (H3(b)) |
+| `SFrozenMap::get` | `&SFrozenMap` | `get_index_of`, then a bounds-checked read |
+| `SFrozenMap::get_mut` | `&mut SFrozenMap` | `get_index_of`, then bounds-checked access through `parts_mut` |
+| `SFrozenMap::contains_key` | `&SFrozenMap` | `get_index_of` |
+
 ### `AllocError`
 
 | Function | Takes | Preserves I, T, E, B because |
@@ -538,12 +642,16 @@ crates/ordstack/src/*.rs`), then the trait impls. "Resets" means
 | `IntoIterator` for `SFixedVec` | `into_slice`, then `SSlice::into_iter` |
 | `IntoIterator` for `SVec`; `Iterator`, `DoubleEndedIterator`, `ExactSizeIterator` for `VecIntoIter` | unsafe row 63; afterwards delegates to `IntoIter`; never writes `top` or an `end`, so the buffer is reclaimed by the next reset of the frame |
 | `Extend<T>` for `SVec`; `Extend<char>`, `Extend<&str>`, `fmt::Write` for `SString` | loops over `push` / `push_str` |
+| `Drop` for `SMap`, `SFrozenMap` | `len := 0` first, then drops the entries back to front; never writes `top` or an `end` |
+| `Extend<(K, V)>` for `SMap` | `try_reserve` of the lower size hint (its error is ignored), then loops over `insert` |
+| `Debug` for `SMap`, `SFrozenMap` | `debug_map` over `iter` |
+| `IntoIterator` for `&SMap`, `&mut SMap`, `&SFrozenMap`, `&mut SFrozenMap`; `Iterator`, `DoubleEndedIterator`, `ExactSizeIterator` for `map::Iter`, `IterMut`, `Keys`, `Values`, `ValuesMut` | `iter` / `iter_mut`; each wraps a slice iterator over the entries |
 | `Default`, `Debug` for `Stack` | `Stack::new`; reads three integers |
 | `Debug`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Hash`, `Borrow` (`deref_traits!`); `Display` for `SStr`, `SString`; `Display`, `Error` for `AllocError` | delegate to the `Deref` target through `&self` |
 
 ## Every `unsafe` block
 
-`grep -o "unsafe {" crates/ordstack/src/*.rs` finds 63 blocks: 60 in library
+`grep -o "unsafe {" crates/ordstack/src/*.rs` finds 78 blocks: 75 in library
 code and 3 in the unit tests of `region.rs`. There is one numbered row for
 each, in file order; `scripts/check-unsafe-table.sh`, run by
 `scripts/check.sh`, fails when the two counts differ. "Handle contract" means the safety contract of the
@@ -553,7 +661,7 @@ brand and holds initialised values, or the pointer is dangling and aligned
 and the block has zero size. The section "Why frozen blocks stay valid for
 their brand" is what discharges it.
 
-There are also 8 `unsafe fn`, all private to the crate; their contracts
+There are also 9 `unsafe fn`, all private to the crate; their contracts
 follow the table. There is no `unsafe impl` and no `unsafe trait`.
 
 | # | File | Function | Operation | Justified by |
@@ -621,6 +729,21 @@ follow the table. There is no `unsafe impl` and no `unsafe trait`.
 | 61 | `vec.rs` | `DerefMut::deref_mut` | `slice::from_raw_parts_mut` | B; `&mut self` is unique |
 | 62 | `vec.rs` | `Drop::drop` | `drop_back_to_front(ptr, len)` | B; `self.len` was set to 0 first |
 | 63 | `vec.rs` | `IntoIterator::into_iter` (`SVec` → `VecIntoIter`) | `SSlice::from_raw_parts(ptr, len)` with brand `'v` | B for `len` values; the buffer lies at or above `frame.end`, and `VecIntoIter` holds `&'v mut Frame<'f>` for as long as the slice iterator inside it exists, so neither this frame nor any object beneath it can reset (I); the slice iterator is dropped first (field order) |
+| 64 | `map.rs` | `SMap::parts` | two `slice::from_raw_parts`: entries, index | M: `len` initialised entries at the start of the block and `slots` initialised slots after the first `usable(slots)` entries; disjoint because `len <= usable(slots)`; with no block both lengths are 0 and `ptr` is dangling and aligned |
+| 65 | `map.rs` | `SMap::parts_mut` | two `slice::from_raw_parts_mut` | as row 64; the ranges are disjoint and `&mut self` is unique |
+| 66 | `map.rs` | `SMap::try_grow_to` | `write_bytes(0)` over the new index | the block was just extended or bumped to `block_bytes(new_slots)` bytes at `top` (B, T); the index starts after `usable(new_slots) > len` entries, so it overlaps no entry |
+| 67 | `map.rs` | `SMap::push` | `ptr.add(len).write(bucket)` | `reserve(1)` gave `len < usable(slots)`: inside the block, holding no entry (M) |
+| 68 | `map.rs` | `SMap::pop_bucket` | `ptr.add(len).read()` | M; `len` was lowered first; both callers removed the only slot naming that entry first |
+| 69 | `map.rs` | `SMap::clear` | `drop_back_to_front(ptr, len)` | M; `self.len := 0` and the index emptied first |
+| 70 | `map.rs` | `Drop::drop` for `SMap` | `drop_back_to_front(ptr, len)` | M; `self.len := 0` first |
+| 71 | `map.rs` | `SMap::into_parts` | `ptr::read` of the frame reference and the hasher | `this` is in `ManuallyDrop` and never used again, so both are moved, not duplicated |
+| 72 | `map.rs` | `SMap::freeze` | `write_bytes(0)` over the compact index | `len <= usable(slots)` and `slots_for(len) <= slots`, so `[len * E, len * E + new_slots * 4)` lies inside the old block, past the entries |
+| 73 | `map.rs` | `SMap::freeze` | `SFrozenMap::from_raw_parts` | M for the entries; the index was zeroed (row 72) and is then filled by safe code; `frame.end` was just raised past the block (E) |
+| 74 | `map.rs` | `SMap::freeze_into` | `copy_nonoverlapping` of the entries, `len := 0`, `write_bytes(0)` over the index | fresh block of `units` entries from `dst.try_alloc_array`, and `units * E >= len * E + new_slots * 4`; another stack than the source block, as row 59; `len := 0` leaves one owner |
+| 75 | `map.rs` | `SMap::freeze_into` | `SFrozenMap::from_raw_parts` | the block was allocated for `'g` by `dst` (E); entries copied, index zeroed |
+| 76 | `map.rs` | `SFrozenMap::parts` | two `slice::from_raw_parts` | `from_raw_parts`'s contract: `len` entries then `slots` slots, disjoint, valid for the brand; empty: both lengths 0, `ptr` dangling and aligned |
+| 77 | `map.rs` | `SFrozenMap::parts_mut` | two `slice::from_raw_parts_mut` | as row 76; `&mut self` is unique |
+| 78 | `map.rs` | `Drop::drop` for `SFrozenMap` | `drop_back_to_front(ptr, len)` | as row 76; `self.len := 0` first |
 
 The `unsafe fn` contracts:
 
@@ -632,6 +755,7 @@ The `unsafe fn` contracts:
 | `slice.rs` | `SStr::from_utf8_unchecked` | the bytes are valid UTF-8 |
 | `region.rs` | `os::unmap` (Unix and Miri) | `base`/`len` is a live mapping returned by `map` |
 | `region.rs` | `os::discard` (Unix and Miri) | the page-aligned range lies inside a live mapping and nothing relies on its contents (a no-op under Miri) |
+| `map.rs` | `SFrozenMap::from_raw_parts` | `ptr` points to `len` initialised entries followed by `slots` initialised index slots, in a block that stays allocated and unaliased for `'f` |
 
 ## Verification
 
@@ -642,7 +766,7 @@ is meant for a large machine.
   `clippy::undocumented_unsafe_blocks` denied.
 - The test suite on stable, debug and release, including the doctests of the
   crate documentation and of `README.md`.
-- **Compile-fail tests.** 16 cases in `tests/ui/fail`, one per rejection the
+- **Compile-fail tests.** 19 cases in `tests/ui/fail`, one per rejection the
   guarantee depends on, each with a compiling twin in `tests/ui/pass` that
   differs only in the offending line. The twins are generated by
   `scripts/gen-ui-pass.sh`; `check.sh` regenerates them and fails if they
@@ -653,13 +777,18 @@ is meant for a large machine.
 - **AddressSanitizer** runs the integration and unit tests (not the
   doctests) with a sanitised standard library.
 - **Shadow-model property test.** `tests/common/model.rs` is an interpreter
-  whose 24 byte values (`byte % 24`) select 16 distinct operations on a
+  whose 25 byte values (`byte % 25`) select 17 distinct operations on a
   vector of drop-tracked values (nine of the values are push): push, pop,
   truncate, insert, remove, swap_remove, retain, clear, extend, reserve,
   shrink_to_fit, descend through `split_above` (to depth 6), leave the level
   (at depth 0: drop the vector and start a fresh one), freeze,
-  `freeze_into` through a second stack, and sub-frame scopes with
-  `reset_above`. After every operation the contents are compared with a
+  `freeze_into` through a second stack, sub-frame scopes with
+  `reset_above`, and a map scope: an `SMap<u8, Tracked>` built above the
+  vector through `split_above`, driven by its own sub-script (insert,
+  `swap_remove`, `shift_remove`, `entry().or_insert_with`, a box allocated
+  above the map) with every step checked against a `Vec` model of the
+  insertion order and a lookup of every key, and ended by dropping, `freeze`
+  (then a box beside the frozen map), or `freeze_into` the scratch stack. After every operation the contents are compared with a
   `Vec` model, frozen blocks are re-read after later allocations, and at the
   end every value must have been dropped exactly once in the expected
   order. `tests/model.rs`
@@ -681,9 +810,10 @@ is meant for a large machine.
 - AddressSanitizer sees the region as one valid mapping, so it cannot detect
   a use of reclaimed memory inside the region. That is what the debug shadow
   and the model's content checks are for.
-- The property test and fuzzer explore one element type and one thread.
+- The property test and fuzzer explore one element type, one map type and one thread.
   `SFixedVec`, `SString`, `sformat!`, `Frame::alloc_slice_from_iter`, by-value
-  iteration of an `SVec` (`VecIntoIter`), allocation failure, `Stack::reset`
+  iteration of an `SVec` (`VecIntoIter`), `SMap::clear`, `Extend` for `SMap`, `SMap` growth failure,
+  allocation failure, `Stack::reset`
   and `Stack::trim` are outside the interpreter and are covered only by the
   hand-written tests.
 - The compile-fail tests show that particular programs are rejected. They

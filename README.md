@@ -27,8 +27,10 @@ tokens.push(";"); // top again
 assert_eq!(tokens.len(), 5);
 ```
 
-The crate documentation's *Patterns* section shows several stacks,
-children on the same stack, phases, and how to choose a reservation.
+`SMap` is a hash map that grows on a frame the same way, keeps insertion
+order, and freezes into an `SFrozenMap` in place. The crate documentation's
+*Patterns* section shows several stacks, children on the same stack,
+phases, and how to choose a reservation.
 
 ## What it is and is not
 

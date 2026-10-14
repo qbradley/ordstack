@@ -4,7 +4,7 @@
 //! frame above the current vector, so the borrow chain is the call stack.
 //! Each level also keeps frozen slices and boxes side by side in its frame.
 //!
-//! Byte decoding (the operation is `byte % 24`; an argument byte, written
+//! Byte decoding (the operation is `byte % 25`; an argument byte, written
 //! `arg`, is the next byte, or 0 once the input is exhausted):
 //!
 //! | op        | operation                                                    |
@@ -25,8 +25,9 @@
 //! | 18        | extend with `arg % 8` fresh values; if `arg & 8`, from an iterator with no exact size hint |
 //! | 19        | move the elements (reversed) into a vector on a second stack, `freeze_into` this level's frame, then allocate a box; the source vector has `arg % 4` spare slots |
 //! | 20        | `split_above`, then `arg % 4 + 1` rounds in `sub` scopes (see `sub_scope`), `reset_above`, allocate again |
+//! | 24        | `split_above`, then map operations on a map in the new frame until the script ends the map (see `map_scope`) |
 
-use ordstack::{Frame, SBox, SSlice, SVec, Stack};
+use ordstack::{Frame, SBox, SMap, SSlice, SVec, Stack};
 use std::cell::{Cell, RefCell};
 
 /// Hands out ids and records drops.
@@ -118,7 +119,7 @@ fn level<'f, 's, 'c>(
         let mut next = Next::End;
         let mut spare = 0;
         while let Some(op) = input.next() {
-            match op % 24 {
+            match op % 25 {
                 0..=5 | 21..=23 => {
                     let t = cx.make();
                     m.push(t.id);
@@ -211,6 +212,11 @@ fn level<'f, 's, 'c>(
                     spare = arg(input) % 4;
                     next = Next::FreezeViaScratch;
                     break;
+                }
+                24 => {
+                    let (elems, mut up) = v.split_above();
+                    map_scope(&mut up, scratch, input, cx);
+                    assert_eq!(ids(elems), m, "a lower vector changed under a map");
                 }
                 _ => {
                     let rounds = arg(input) % 4 + 1;
@@ -363,6 +369,141 @@ fn sub_scope<'c>(up: &mut Frame<'_>, rounds: usize, cx: &'c Cx) {
     fresh.drop_in_order(cx);
     old.check();
     old.drop_in_order(cx);
+}
+
+/// Checks a map's entries, in order, and a lookup of every key against the
+/// model.
+fn check_map(entries: Vec<(u8, u32)>, get: impl Fn(u8) -> Option<u32>, m: &[(u8, u32)]) {
+    assert_eq!(entries, m, "map entries differ from the model");
+    for k in 0..32 {
+        let want = m.iter().find(|e| e.0 == k).map(|e| e.1);
+        assert_eq!(get(k), want, "map lookup differs from the model");
+    }
+}
+
+/// Runs operations on an `SMap<u8, Tracked>` on top of `up`, against a
+/// model of its entries in insertion order. Keys are `arg % 32`, so they
+/// collide often. Decoding (`byte % 8`; `arg` as in `level`):
+///
+/// | op   | operation                                                        |
+/// |------|------------------------------------------------------------------|
+/// | 0..=2 | insert a fresh value under a key (replacing drops the old one)  |
+/// | 3    | `swap_remove` a key                                              |
+/// | 4    | `shift_remove` a key                                             |
+/// | 5    | `entry(key).or_insert_with(fresh)`                               |
+/// | 6    | allocate a box above the map, check it, drop it                  |
+/// | 7    | end the map: by `arg % 3`, drop it; `freeze` it and allocate a box beside it; or `freeze_into` the scratch frame |
+///
+/// A script that runs out ends the map by dropping it.
+fn map_scope<'c>(
+    up: &mut Frame<'_>,
+    scratch: &mut Frame<'_>,
+    input: &mut dyn Iterator<Item = u8>,
+    cx: &'c Cx,
+) {
+    let mut map: SMap<'_, '_, u8, Tracked<'c>> = SMap::new_in(up);
+    let mut m: Vec<(u8, u32)> = Vec::new();
+    let mut end = 0;
+    let key = |input: &mut dyn Iterator<Item = u8>| (arg(input) % 32) as u8;
+    while let Some(op) = input.next() {
+        match op % 8 {
+            0..=2 => {
+                let k = key(input);
+                let t = cx.make();
+                let id = t.id;
+                match m.iter_mut().find(|e| e.0 == k) {
+                    Some(e) => {
+                        let old = map.insert(k, t).expect("the model has this key");
+                        assert_eq!(old.id, std::mem::replace(&mut e.1, id));
+                        cx.expect([old.id]);
+                    }
+                    None => {
+                        assert!(map.insert(k, t).is_none());
+                        m.push((k, id));
+                    }
+                }
+            }
+            3 => {
+                let k = key(input);
+                let want = m.iter().position(|e| e.0 == k).map(|p| m.swap_remove(p).1);
+                let got = map.swap_remove(&k);
+                assert_eq!(got.as_ref().map(|t| t.id), want);
+                cx.expect(want);
+            }
+            4 => {
+                let k = key(input);
+                let want = m.iter().position(|e| e.0 == k).map(|p| m.remove(p).1);
+                let got = map.shift_remove(&k);
+                assert_eq!(got.as_ref().map(|t| t.id), want);
+                cx.expect(want);
+            }
+            5 => {
+                let k = key(input);
+                let before = cx.next.get();
+                let id = map.entry(k).or_insert_with(|| cx.make()).id;
+                match m.iter().find(|e| e.0 == k) {
+                    Some(e) => {
+                        assert_eq!(e.1, id);
+                        assert_eq!(
+                            cx.next.get(),
+                            before,
+                            "or_insert_with ran for a present key"
+                        );
+                    }
+                    None => m.push((k, id)),
+                }
+            }
+            6 => {
+                let t = cx.make();
+                let id = t.id;
+                let b = map.above().alloc(t);
+                assert_eq!(b.id, id);
+                cx.expect([id]);
+                drop(b);
+            }
+            _ => {
+                end = arg(input) % 3;
+                break;
+            }
+        }
+        check_map(
+            map.iter().map(|(k, t)| (*k, t.id)).collect(),
+            |k| map.get(&k).map(|t| t.id),
+            &m,
+        );
+    }
+    match end {
+        0 => {
+            cx.expect(m.iter().rev().map(|e| e.1));
+            drop(map);
+        }
+        1 => {
+            let fm = map.freeze();
+            let t = cx.make();
+            let id = t.id;
+            let b = up.alloc(t);
+            check_map(
+                fm.iter().map(|(k, t)| (*k, t.id)).collect(),
+                |k| fm.get(&k).map(|t| t.id),
+                &m,
+            );
+            assert_eq!(b.id, id, "a box beside a frozen map changed");
+            cx.expect([id]);
+            drop(b);
+            cx.expect(m.iter().rev().map(|e| e.1));
+            drop(fm);
+        }
+        _ => {
+            let fm = map.freeze_into(scratch);
+            check_map(
+                fm.iter().map(|(k, t)| (*k, t.id)).collect(),
+                |k| fm.get(&k).map(|t| t.id),
+                &m,
+            );
+            cx.expect(m.iter().rev().map(|e| e.1));
+            drop(fm);
+        }
+    }
 }
 
 /// Runs one script. Panics on any disagreement with the model.

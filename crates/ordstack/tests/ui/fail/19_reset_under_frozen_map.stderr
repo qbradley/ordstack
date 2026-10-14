@@ -1,0 +1,10 @@
+error[E0499]: cannot borrow `st` as mutable more than once at a time
+  --> tests/ui/fail/19_reset_under_frozen_map.rs:10:5
+   |
+5  |         let mut f = st.frame();
+   |                     -- first mutable borrow occurs here
+...
+10 |     st.reset(); // ERROR
+   |     ^^ second mutable borrow occurs here
+11 |     assert_eq!(fm.get(&1), Some(&1));
+   |                -- first borrow later used here

@@ -7,6 +7,9 @@
 - `sformat!`: `format!` into a frozen `SStr` on a frame
 - `IntoIterator` for `&SSlice`, `&mut SSlice`, `&SVec`, `&mut SVec`, `&SFixedVec`, `&mut SFixedVec`, and by value for `SFixedVec` and `SVec` (`iter::VecIntoIter`, which keeps the frame borrowed so the buffer is reclaimed afterwards)
 - Crate docs: *Patterns* now covers phases and choosing a reservation
+- `SMap`: a growable, insertion-ordered hash map on a frame (`map` module); grows in place, `swap_remove`/`shift_remove`, iteration in insertion order whatever the hasher
+- `SMap::entry` with `or_insert`, `or_insert_with`, `or_default` (`map::Entry`, `OccupiedEntry`, `VacantEntry`)
+- `SFrozenMap`: `SMap::freeze` (in place; the index is compacted and the rest of the block given back) and `SMap::freeze_into` (another stack)
 
 ## 0.1.0 (unreleased)
 
