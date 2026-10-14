@@ -1,0 +1,5544 @@
+{
+ "runs": 25,
+ "warmup": 3,
+ "variants": [
+  "std",
+  "std-mimalloc",
+  "std-control",
+  "ordstack",
+  "bumpalo",
+  "bumpalo-frozen"
+ ],
+ "noise_iqr": 0.04,
+ "cases": {
+  "treebuild-d7": {
+   "program": "treebuild",
+   "args": [
+    "7"
+   ],
+   "core": 64,
+   "load": {
+    "loadavg_before": [
+     "33.28",
+     "18.63",
+     "11.40"
+    ],
+    "core_busy_before": {
+     "64": 0.0
+    },
+    "system_busy_before": 20.8,
+    "loadavg_after": [
+     "32.92",
+     "19.04",
+     "11.61"
+    ],
+    "siblings_busy_during": {},
+    "system_busy_during": 27.4
+   },
+   "max_rel_iqr": 0.03593792920342213,
+   "runs": {
+    "std": [
+     {
+      "wall": 0.0962088187225163,
+      "maxrss_kb": 48384,
+      "user": 0.051614,
+      "sys": 0.043673,
+      "minflt": 12081,
+      "phases_us": null
+     },
+     {
+      "wall": 0.09693075902760029,
+      "maxrss_kb": 48384,
+      "user": 0.063888,
+      "sys": 0.031944,
+      "minflt": 12086,
+      "phases_us": null
+     },
+     {
+      "wall": 0.09722133679315448,
+      "maxrss_kb": 48384,
+      "user": 0.059086,
+      "sys": 0.037054,
+      "minflt": 12085,
+      "phases_us": null
+     },
+     {
+      "wall": 0.09695339016616344,
+      "maxrss_kb": 48384,
+      "user": 0.058911,
+      "sys": 0.036944,
+      "minflt": 12086,
+      "phases_us": null
+     },
+     {
+      "wall": 0.09633127320557833,
+      "maxrss_kb": 48384,
+      "user": 0.064154,
+      "sys": 0.031075,
+      "minflt": 12087,
+      "phases_us": null
+     },
+     {
+      "wall": 0.09636808512732387,
+      "maxrss_kb": 48384,
+      "user": 0.06114,
+      "sys": 0.034078,
+      "minflt": 12086,
+      "phases_us": null
+     },
+     {
+      "wall": 0.09770611068233848,
+      "maxrss_kb": 48384,
+      "user": 0.057747,
+      "sys": 0.038829999999999996,
+      "minflt": 12087,
+      "phases_us": null
+     },
+     {
+      "wall": 0.0960335354320705,
+      "maxrss_kb": 48384,
+      "user": 0.058962,
+      "sys": 0.035976999999999995,
+      "minflt": 12089,
+      "phases_us": null
+     },
+     {
+      "wall": 0.09633601363748312,
+      "maxrss_kb": 48384,
+      "user": 0.058119,
+      "sys": 0.037076,
+      "minflt": 12085,
+      "phases_us": null
+     },
+     {
+      "wall": 0.09553085081279278,
+      "maxrss_kb": 48384,
+      "user": 0.063301,
+      "sys": 0.031148,
+      "minflt": 12087,
+      "phases_us": null
+     },
+     {
+      "wall": 0.09599936380982399,
+      "maxrss_kb": 48384,
+      "user": 0.053975999999999996,
+      "sys": 0.040981,
+      "minflt": 12086,
+      "phases_us": null
+     },
+     {
+      "wall": 0.09585262089967728,
+      "maxrss_kb": 48384,
+      "user": 0.061833,
+      "sys": 0.032910999999999996,
+      "minflt": 12088,
+      "phases_us": null
+     },
+     {
+      "wall": 0.09567345585674047,
+      "maxrss_kb": 48384,
+      "user": 0.057773,
+      "sys": 0.036855,
+      "minflt": 12088,
+      "phases_us": null
+     },
+     {
+      "wall": 0.09722289862111211,
+      "maxrss_kb": 48384,
+      "user": 0.061069,
+      "sys": 0.03504,
+      "minflt": 12088,
+      "phases_us": null
+     },
+     {
+      "wall": 0.09603665582835674,
+      "maxrss_kb": 48384,
+      "user": 0.061856999999999995,
+      "sys": 0.032924,
+      "minflt": 12088,
+      "phases_us": null
+     },
+     {
+      "wall": 0.0961669790558517,
+      "maxrss_kb": 48384,
+      "user": 0.056498,
+      "sys": 0.038657,
+      "minflt": 12087,
+      "phases_us": null
+     },
+     {
+      "wall": 0.09624397195875645,
+      "maxrss_kb": 48384,
+      "user": 0.057144,
+      "sys": 0.038096,
+      "minflt": 12086,
+      "phases_us": null
+     },
+     {
+      "wall": 0.0981490551494062,
+      "maxrss_kb": 48384,
+      "user": 0.059099,
+      "sys": 0.038063,
+      "minflt": 12088,
+      "phases_us": null
+     },
+     {
+      "wall": 0.09547686111181974,
+      "maxrss_kb": 48384,
+      "user": 0.055742,
+      "sys": 0.03882,
+      "minflt": 12088,
+      "phases_us": null
+     },
+     {
+      "wall": 0.097354122903198,
+      "maxrss_kb": 48384,
+      "user": 0.057635,
+      "sys": 0.038754,
+      "minflt": 12089,
+      "phases_us": null
+     },
+     {
+      "wall": 0.09758819034323096,
+      "maxrss_kb": 48384,
+      "user": 0.053818,
+      "sys": 0.042855,
+      "minflt": 12086,
+      "phases_us": null
+     },
+     {
+      "wall": 0.10039020702242851,
+      "maxrss_kb": 48384,
+      "user": 0.06123,
+      "sys": 0.038142999999999996,
+      "minflt": 12089,
+      "phases_us": null
+     },
+     {
+      "wall": 0.09501703921705484,
+      "maxrss_kb": 48384,
+      "user": 0.057021999999999996,
+      "sys": 0.037014,
+      "minflt": 12088,
+      "phases_us": null
+     },
+     {
+      "wall": 0.09690134087577462,
+      "maxrss_kb": 48384,
+      "user": 0.053995999999999995,
+      "sys": 0.041997,
+      "minflt": 12086,
+      "phases_us": null
+     },
+     {
+      "wall": 0.09531124727800488,
+      "maxrss_kb": 48384,
+      "user": 0.055129,
+      "sys": 0.039091,
+      "minflt": 12084,
+      "phases_us": null
+     }
+    ],
+    "std-mimalloc": [
+     {
+      "wall": 0.09149799915030599,
+      "maxrss_kb": 52904,
+      "user": 0.057304999999999995,
+      "sys": 0.033176,
+      "minflt": 323,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08216218091547489,
+      "maxrss_kb": 52912,
+      "user": 0.049052,
+      "sys": 0.032034,
+      "minflt": 324,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08603214891627431,
+      "maxrss_kb": 52908,
+      "user": 0.050887999999999996,
+      "sys": 0.033925,
+      "minflt": 323,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08975000120699406,
+      "maxrss_kb": 52912,
+      "user": 0.055758999999999996,
+      "sys": 0.032858,
+      "minflt": 324,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08911568392068148,
+      "maxrss_kb": 52908,
+      "user": 0.051021,
+      "sys": 0.037015,
+      "minflt": 324,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08776510739699006,
+      "maxrss_kb": 52916,
+      "user": 0.051812,
+      "sys": 0.034873999999999995,
+      "minflt": 326,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08959542820230126,
+      "maxrss_kb": 52912,
+      "user": 0.054209999999999994,
+      "sys": 0.034131999999999996,
+      "minflt": 326,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08830250101163983,
+      "maxrss_kb": 52912,
+      "user": 0.054075,
+      "sys": 0.033046,
+      "minflt": 324,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08907304285094142,
+      "maxrss_kb": 52912,
+      "user": 0.051008,
+      "sys": 0.037004999999999996,
+      "minflt": 325,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08290512301027775,
+      "maxrss_kb": 52904,
+      "user": 0.047868,
+      "sys": 0.033906,
+      "minflt": 323,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08665033709257841,
+      "maxrss_kb": 52908,
+      "user": 0.047255,
+      "sys": 0.038206,
+      "minflt": 326,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08642201917245984,
+      "maxrss_kb": 52916,
+      "user": 0.051218,
+      "sys": 0.034145,
+      "minflt": 326,
+      "phases_us": null
+     },
+     {
+      "wall": 0.09076301008462906,
+      "maxrss_kb": 52912,
+      "user": 0.053417,
+      "sys": 0.036282999999999996,
+      "minflt": 325,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08521882724016905,
+      "maxrss_kb": 52908,
+      "user": 0.055047,
+      "sys": 0.029025,
+      "minflt": 323,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08838510373607278,
+      "maxrss_kb": 52908,
+      "user": 0.05321,
+      "sys": 0.034135,
+      "minflt": 326,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08905320381745696,
+      "maxrss_kb": 52908,
+      "user": 0.057072,
+      "sys": 0.031038999999999997,
+      "minflt": 324,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08925067912787199,
+      "maxrss_kb": 52908,
+      "user": 0.050067,
+      "sys": 0.038051,
+      "minflt": 326,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08217065315693617,
+      "maxrss_kb": 52912,
+      "user": 0.051094,
+      "sys": 0.030055,
+      "minflt": 326,
+      "phases_us": null
+     },
+     {
+      "wall": 0.09166106581687927,
+      "maxrss_kb": 52912,
+      "user": 0.057775999999999994,
+      "sys": 0.032872,
+      "minflt": 328,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08799941372126341,
+      "maxrss_kb": 52912,
+      "user": 0.055984,
+      "sys": 0.030990999999999998,
+      "minflt": 326,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08655353495851159,
+      "maxrss_kb": 52912,
+      "user": 0.053126,
+      "sys": 0.032076,
+      "minflt": 328,
+      "phases_us": null
+     },
+     {
+      "wall": 0.07671899301931262,
+      "maxrss_kb": 52908,
+      "user": 0.05175,
+      "sys": 0.023884,
+      "minflt": 326,
+      "phases_us": null
+     },
+     {
+      "wall": 0.09166055591776967,
+      "maxrss_kb": 52908,
+      "user": 0.057823,
+      "sys": 0.032899,
+      "minflt": 326,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08689428400248289,
+      "maxrss_kb": 52912,
+      "user": 0.054943,
+      "sys": 0.030968,
+      "minflt": 325,
+      "phases_us": null
+     },
+     {
+      "wall": 0.09025419689714909,
+      "maxrss_kb": 52912,
+      "user": 0.05508,
+      "sys": 0.034048999999999996,
+      "minflt": 326,
+      "phases_us": null
+     }
+    ],
+    "std-control": [
+     {
+      "wall": 0.08355309022590518,
+      "maxrss_kb": 43776,
+      "user": 0.053670999999999996,
+      "sys": 0.028822999999999998,
+      "minflt": 10942,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08547234302386642,
+      "maxrss_kb": 43776,
+      "user": 0.056256,
+      "sys": 0.028128,
+      "minflt": 10943,
+      "phases_us": null
+     },
+     {
+      "wall": 0.0844892761670053,
+      "maxrss_kb": 43776,
+      "user": 0.052173,
+      "sys": 0.031103,
+      "minflt": 10943,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08728409325703979,
+      "maxrss_kb": 43776,
+      "user": 0.050115,
+      "sys": 0.036083,
+      "minflt": 10942,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08444720506668091,
+      "maxrss_kb": 43776,
+      "user": 0.052257,
+      "sys": 0.031153,
+      "minflt": 10942,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08438651310279965,
+      "maxrss_kb": 43776,
+      "user": 0.047623,
+      "sys": 0.035717,
+      "minflt": 10944,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08429147023707628,
+      "maxrss_kb": 43776,
+      "user": 0.050169,
+      "sys": 0.033111,
+      "minflt": 10943,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08370780386030674,
+      "maxrss_kb": 43776,
+      "user": 0.046335999999999995,
+      "sys": 0.036263,
+      "minflt": 10943,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08445378532633185,
+      "maxrss_kb": 43776,
+      "user": 0.050248,
+      "sys": 0.033163,
+      "minflt": 10941,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08383392821997404,
+      "maxrss_kb": 43776,
+      "user": 0.0409,
+      "sys": 0.041897,
+      "minflt": 10942,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08455911930650473,
+      "maxrss_kb": 43776,
+      "user": 0.047706,
+      "sys": 0.03578,
+      "minflt": 10942,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08442864520475268,
+      "maxrss_kb": 43776,
+      "user": 0.04553,
+      "sys": 0.037612,
+      "minflt": 10944,
+      "phases_us": null
+     },
+     {
+      "wall": 0.0851756245829165,
+      "maxrss_kb": 43776,
+      "user": 0.045094999999999996,
+      "sys": 0.039082,
+      "minflt": 10941,
+      "phases_us": null
+     },
+     {
+      "wall": 0.0837796782143414,
+      "maxrss_kb": 43776,
+      "user": 0.044805,
+      "sys": 0.037835,
+      "minflt": 10943,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08351211994886398,
+      "maxrss_kb": 43776,
+      "user": 0.050677,
+      "sys": 0.031797,
+      "minflt": 10943,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08546930365264416,
+      "maxrss_kb": 43776,
+      "user": 0.047278999999999995,
+      "sys": 0.037218999999999995,
+      "minflt": 10944,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08508278336375952,
+      "maxrss_kb": 43776,
+      "user": 0.050906,
+      "sys": 0.032938999999999996,
+      "minflt": 10942,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08456690888851881,
+      "maxrss_kb": 43776,
+      "user": 0.056677,
+      "sys": 0.026847,
+      "minflt": 10943,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08916636696085334,
+      "maxrss_kb": 43776,
+      "user": 0.048284,
+      "sys": 0.035206999999999995,
+      "minflt": 10942,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08657839521765709,
+      "maxrss_kb": 43776,
+      "user": 0.052301999999999994,
+      "sys": 0.033191,
+      "minflt": 10943,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08389663090929389,
+      "maxrss_kb": 43776,
+      "user": 0.049964999999999996,
+      "sys": 0.032976,
+      "minflt": 10943,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08515008632093668,
+      "maxrss_kb": 43776,
+      "user": 0.052097,
+      "sys": 0.032059,
+      "minflt": 10943,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08388468064367771,
+      "maxrss_kb": 43776,
+      "user": 0.053953,
+      "sys": 0.028974999999999997,
+      "minflt": 10941,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08309526927769184,
+      "maxrss_kb": 43776,
+      "user": 0.048083,
+      "sys": 0.034059,
+      "minflt": 10942,
+      "phases_us": null
+     },
+     {
+      "wall": 0.08444811683148146,
+      "maxrss_kb": 43776,
+      "user": 0.054182999999999995,
+      "sys": 0.029098,
+      "minflt": 10943,
+      "phases_us": null
+     }
+    ],
+    "ordstack": [
+     {
+      "wall": 0.03430294804275036,
+      "maxrss_kb": 16128,
+      "user": 0.019152,
+      "sys": 0.014112,
+      "minflt": 4085,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03390461718663573,
+      "maxrss_kb": 16128,
+      "user": 0.021877999999999998,
+      "sys": 0.010938999999999999,
+      "minflt": 4086,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03490125387907028,
+      "maxrss_kb": 16128,
+      "user": 0.01984,
+      "sys": 0.013888,
+      "minflt": 4087,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03449740307405591,
+      "maxrss_kb": 16128,
+      "user": 0.020699,
+      "sys": 0.012813,
+      "minflt": 4085,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03481379197910428,
+      "maxrss_kb": 16896,
+      "user": 0.020457,
+      "sys": 0.013297,
+      "minflt": 4088,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03416179399937391,
+      "maxrss_kb": 16896,
+      "user": 0.019118,
+      "sys": 0.014086999999999999,
+      "minflt": 4088,
+      "phases_us": null
+     },
+     {
+      "wall": 0.034539645072072744,
+      "maxrss_kb": 16128,
+      "user": 0.023353,
+      "sys": 0.010152999999999999,
+      "minflt": 4087,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03462387714534998,
+      "maxrss_kb": 16128,
+      "user": 0.018328999999999998,
+      "sys": 0.015274,
+      "minflt": 4085,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03417366510257125,
+      "maxrss_kb": 16128,
+      "user": 0.02009,
+      "sys": 0.013059,
+      "minflt": 4087,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03420880623161793,
+      "maxrss_kb": 16128,
+      "user": 0.017127,
+      "sys": 0.01612,
+      "minflt": 4085,
+      "phases_us": null
+     },
+     {
+      "wall": 0.034693548921495676,
+      "maxrss_kb": 16896,
+      "user": 0.02274,
+      "sys": 0.010875,
+      "minflt": 4089,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03446137299761176,
+      "maxrss_kb": 16128,
+      "user": 0.01968,
+      "sys": 0.013776,
+      "minflt": 4086,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03466742858290672,
+      "maxrss_kb": 16896,
+      "user": 0.018803,
+      "sys": 0.014844999999999999,
+      "minflt": 4089,
+      "phases_us": null
+     },
+     {
+      "wall": 0.034386121202260256,
+      "maxrss_kb": 16128,
+      "user": 0.017646,
+      "sys": 0.015685,
+      "minflt": 4086,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03484863415360451,
+      "maxrss_kb": 16128,
+      "user": 0.021870999999999998,
+      "sys": 0.011928999999999999,
+      "minflt": 4087,
+      "phases_us": null
+     },
+     {
+      "wall": 0.034687069710344076,
+      "maxrss_kb": 16896,
+      "user": 0.019829,
+      "sys": 0.01388,
+      "minflt": 4088,
+      "phases_us": null
+     },
+     {
+      "wall": 0.0350972106680274,
+      "maxrss_kb": 16128,
+      "user": 0.017006,
+      "sys": 0.017006,
+      "minflt": 4088,
+      "phases_us": null
+     },
+     {
+      "wall": 0.034788912162184715,
+      "maxrss_kb": 16128,
+      "user": 0.022883,
+      "sys": 0.010943999999999999,
+      "minflt": 4086,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03447994403541088,
+      "maxrss_kb": 16128,
+      "user": 0.019209,
+      "sys": 0.014154,
+      "minflt": 4088,
+      "phases_us": null
+     },
+     {
+      "wall": 0.034064732026308775,
+      "maxrss_kb": 16128,
+      "user": 0.016016,
+      "sys": 0.017017,
+      "minflt": 4087,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03438495099544525,
+      "maxrss_kb": 16128,
+      "user": 0.021304999999999998,
+      "sys": 0.012173999999999999,
+      "minflt": 4088,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03487646486610174,
+      "maxrss_kb": 16128,
+      "user": 0.018373,
+      "sys": 0.015311,
+      "minflt": 4085,
+      "phases_us": null
+     },
+     {
+      "wall": 0.033673361875116825,
+      "maxrss_kb": 16896,
+      "user": 0.020793,
+      "sys": 0.011882,
+      "minflt": 4088,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03408324299380183,
+      "maxrss_kb": 16128,
+      "user": 0.01852,
+      "sys": 0.014620999999999999,
+      "minflt": 4087,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03537259856238961,
+      "maxrss_kb": 16128,
+      "user": 0.021648,
+      "sys": 0.012792,
+      "minflt": 4087,
+      "phases_us": null
+     }
+    ],
+    "bumpalo": [
+     {
+      "wall": 0.054084674920886755,
+      "maxrss_kb": 28416,
+      "user": 0.032038,
+      "sys": 0.021025,
+      "minflt": 7096,
+      "phases_us": null
+     },
+     {
+      "wall": 0.054377682972699404,
+      "maxrss_kb": 28416,
+      "user": 0.035137,
+      "sys": 0.01807,
+      "minflt": 7097,
+      "phases_us": null
+     },
+     {
+      "wall": 0.05418446799740195,
+      "maxrss_kb": 28416,
+      "user": 0.027045999999999997,
+      "sys": 0.026045,
+      "minflt": 7097,
+      "phases_us": null
+     },
+     {
+      "wall": 0.053949442226439714,
+      "maxrss_kb": 28416,
+      "user": 0.03351,
+      "sys": 0.019294,
+      "minflt": 7097,
+      "phases_us": null
+     },
+     {
+      "wall": 0.05473140301182866,
+      "maxrss_kb": 28416,
+      "user": 0.026837999999999997,
+      "sys": 0.026837999999999997,
+      "minflt": 7096,
+      "phases_us": null
+     },
+     {
+      "wall": 0.05468542221933603,
+      "maxrss_kb": 28416,
+      "user": 0.035744,
+      "sys": 0.017872,
+      "minflt": 7097,
+      "phases_us": null
+     },
+     {
+      "wall": 0.054982149973511696,
+      "maxrss_kb": 28416,
+      "user": 0.029899,
+      "sys": 0.023919,
+      "minflt": 7099,
+      "phases_us": null
+     },
+     {
+      "wall": 0.053827257826924324,
+      "maxrss_kb": 28416,
+      "user": 0.028874999999999998,
+      "sys": 0.023896999999999998,
+      "minflt": 7098,
+      "phases_us": null
+     },
+     {
+      "wall": 0.054486415814608335,
+      "maxrss_kb": 28416,
+      "user": 0.028165,
+      "sys": 0.025147,
+      "minflt": 7098,
+      "phases_us": null
+     },
+     {
+      "wall": 0.05358928209170699,
+      "maxrss_kb": 28416,
+      "user": 0.031242,
+      "sys": 0.021164,
+      "minflt": 7098,
+      "phases_us": null
+     },
+     {
+      "wall": 0.05501914210617542,
+      "maxrss_kb": 28416,
+      "user": 0.030945999999999998,
+      "sys": 0.022959999999999998,
+      "minflt": 7096,
+      "phases_us": null
+     },
+     {
+      "wall": 0.054300530813634396,
+      "maxrss_kb": 28416,
+      "user": 0.027544,
+      "sys": 0.025575999999999998,
+      "minflt": 7098,
+      "phases_us": null
+     },
+     {
+      "wall": 0.05445814598351717,
+      "maxrss_kb": 28416,
+      "user": 0.03267,
+      "sys": 0.02079,
+      "minflt": 7097,
+      "phases_us": null
+     },
+     {
+      "wall": 0.05478328512981534,
+      "maxrss_kb": 28416,
+      "user": 0.029816,
+      "sys": 0.023853,
+      "minflt": 7099,
+      "phases_us": null
+     },
+     {
+      "wall": 0.05463436059653759,
+      "maxrss_kb": 28416,
+      "user": 0.029727,
+      "sys": 0.023781,
+      "minflt": 7098,
+      "phases_us": null
+     },
+     {
+      "wall": 0.05493542039766908,
+      "maxrss_kb": 28416,
+      "user": 0.030399,
+      "sys": 0.023306,
+      "minflt": 7099,
+      "phases_us": null
+     },
+     {
+      "wall": 0.05462585110217333,
+      "maxrss_kb": 28416,
+      "user": 0.025315999999999998,
+      "sys": 0.028353999999999997,
+      "minflt": 7098,
+      "phases_us": null
+     },
+     {
+      "wall": 0.05466761300340295,
+      "maxrss_kb": 28416,
+      "user": 0.034642,
+      "sys": 0.018805,
+      "minflt": 7101,
+      "phases_us": null
+     },
+     {
+      "wall": 0.05462907114997506,
+      "maxrss_kb": 28416,
+      "user": 0.027319999999999997,
+      "sys": 0.026307999999999998,
+      "minflt": 7099,
+      "phases_us": null
+     },
+     {
+      "wall": 0.05356075195595622,
+      "maxrss_kb": 28416,
+      "user": 0.032730999999999996,
+      "sys": 0.019837,
+      "minflt": 7101,
+      "phases_us": null
+     },
+     {
+      "wall": 0.05465560220181942,
+      "maxrss_kb": 28416,
+      "user": 0.031875,
+      "sys": 0.021914,
+      "minflt": 7096,
+      "phases_us": null
+     },
+     {
+      "wall": 0.054219009820371866,
+      "maxrss_kb": 28416,
+      "user": 0.029217999999999997,
+      "sys": 0.02418,
+      "minflt": 7099,
+      "phases_us": null
+     },
+     {
+      "wall": 0.054345394019037485,
+      "maxrss_kb": 28416,
+      "user": 0.032230999999999996,
+      "sys": 0.021152,
+      "minflt": 7097,
+      "phases_us": null
+     },
+     {
+      "wall": 0.05537579208612442,
+      "maxrss_kb": 28416,
+      "user": 0.038265,
+      "sys": 0.016111,
+      "minflt": 7099,
+      "phases_us": null
+     },
+     {
+      "wall": 0.0535121108405292,
+      "maxrss_kb": 28416,
+      "user": 0.027777999999999997,
+      "sys": 0.024801,
+      "minflt": 7097,
+      "phases_us": null
+     }
+    ],
+    "bumpalo-frozen": [
+     {
+      "wall": 0.035962603986263275,
+      "maxrss_kb": 19200,
+      "user": 0.015924999999999998,
+      "sys": 0.018911,
+      "minflt": 4811,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03633562522009015,
+      "maxrss_kb": 19200,
+      "user": 0.01409,
+      "sys": 0.021136,
+      "minflt": 4810,
+      "phases_us": null
+     },
+     {
+      "wall": 0.036182810086756945,
+      "maxrss_kb": 19200,
+      "user": 0.020085,
+      "sys": 0.015064,
+      "minflt": 4811,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03561821486800909,
+      "maxrss_kb": 19200,
+      "user": 0.021695,
+      "sys": 0.012818999999999999,
+      "minflt": 4809,
+      "phases_us": null
+     },
+     {
+      "wall": 0.036687193904072046,
+      "maxrss_kb": 19200,
+      "user": 0.023327,
+      "sys": 0.012171,
+      "minflt": 4809,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03615148877725005,
+      "maxrss_kb": 19200,
+      "user": 0.023042,
+      "sys": 0.012022,
+      "minflt": 4812,
+      "phases_us": null
+     },
+     {
+      "wall": 0.035550653003156185,
+      "maxrss_kb": 19200,
+      "user": 0.016773,
+      "sys": 0.017759999999999998,
+      "minflt": 4811,
+      "phases_us": null
+     },
+     {
+      "wall": 0.036007295828312635,
+      "maxrss_kb": 19200,
+      "user": 0.019891,
+      "sys": 0.014917999999999999,
+      "minflt": 4810,
+      "phases_us": null
+     },
+     {
+      "wall": 0.036504860036075115,
+      "maxrss_kb": 19200,
+      "user": 0.022283999999999998,
+      "sys": 0.013167,
+      "minflt": 4811,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03538127802312374,
+      "maxrss_kb": 19200,
+      "user": 0.01815,
+      "sys": 0.016132999999999998,
+      "minflt": 4811,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03662116313353181,
+      "maxrss_kb": 19200,
+      "user": 0.01721,
+      "sys": 0.018222,
+      "minflt": 4811,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03566484618932009,
+      "maxrss_kb": 19200,
+      "user": 0.019274,
+      "sys": 0.015215999999999999,
+      "minflt": 4810,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03753927815705538,
+      "maxrss_kb": 19200,
+      "user": 0.016149,
+      "sys": 0.020186,
+      "minflt": 4812,
+      "phases_us": null
+     },
+     {
+      "wall": 0.036676984280347824,
+      "maxrss_kb": 19200,
+      "user": 0.016849,
+      "sys": 0.018831999999999998,
+      "minflt": 4809,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03573654778301716,
+      "maxrss_kb": 19200,
+      "user": 0.018809,
+      "sys": 0.015839,
+      "minflt": 4811,
+      "phases_us": null
+     },
+     {
+      "wall": 0.035474220756441355,
+      "maxrss_kb": 19200,
+      "user": 0.020298999999999998,
+      "sys": 0.014209,
+      "minflt": 4810,
+      "phases_us": null
+     },
+     {
+      "wall": 0.036780857015401125,
+      "maxrss_kb": 19200,
+      "user": 0.023902,
+      "sys": 0.011951,
+      "minflt": 4813,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03552111191675067,
+      "maxrss_kb": 19200,
+      "user": 0.018755,
+      "sys": 0.015792999999999998,
+      "minflt": 4812,
+      "phases_us": null
+     },
+     {
+      "wall": 0.036141290329396725,
+      "maxrss_kb": 19200,
+      "user": 0.026114,
+      "sys": 0.009039,
+      "minflt": 4813,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03672297578305006,
+      "maxrss_kb": 19200,
+      "user": 0.022885,
+      "sys": 0.012934999999999999,
+      "minflt": 4811,
+      "phases_us": null
+     },
+     {
+      "wall": 0.036475708708167076,
+      "maxrss_kb": 19200,
+      "user": 0.017259,
+      "sys": 0.018275,
+      "minflt": 4813,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03693301184102893,
+      "maxrss_kb": 19200,
+      "user": 0.01398,
+      "sys": 0.021969,
+      "minflt": 4812,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03608420817181468,
+      "maxrss_kb": 19200,
+      "user": 0.018559,
+      "sys": 0.016604999999999998,
+      "minflt": 4812,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03541948972269893,
+      "maxrss_kb": 19200,
+      "user": 0.017786,
+      "sys": 0.016798,
+      "minflt": 4808,
+      "phases_us": null
+     },
+     {
+      "wall": 0.03537650918588042,
+      "maxrss_kb": 19200,
+      "user": 0.015732,
+      "sys": 0.018682,
+      "minflt": 4810,
+      "phases_us": null
+     }
+    ]
+   },
+   "attempts": [
+    {
+     "program": "treebuild",
+     "args": [
+      "7"
+     ],
+     "core": 64,
+     "load": {
+      "loadavg_before": [
+       "33.28",
+       "18.63",
+       "11.40"
+      ],
+      "core_busy_before": {
+       "64": 0.0
+      },
+      "system_busy_before": 20.8,
+      "loadavg_after": [
+       "32.92",
+       "19.04",
+       "11.61"
+      ],
+      "siblings_busy_during": {},
+      "system_busy_during": 27.4
+     },
+     "max_rel_iqr": 0.03593792920342213
+    }
+   ],
+   "all_attempt_runs": [
+    {
+     "std": [
+      {
+       "wall": 0.0962088187225163,
+       "maxrss_kb": 48384,
+       "user": 0.051614,
+       "sys": 0.043673,
+       "minflt": 12081,
+       "phases_us": null
+      },
+      {
+       "wall": 0.09693075902760029,
+       "maxrss_kb": 48384,
+       "user": 0.063888,
+       "sys": 0.031944,
+       "minflt": 12086,
+       "phases_us": null
+      },
+      {
+       "wall": 0.09722133679315448,
+       "maxrss_kb": 48384,
+       "user": 0.059086,
+       "sys": 0.037054,
+       "minflt": 12085,
+       "phases_us": null
+      },
+      {
+       "wall": 0.09695339016616344,
+       "maxrss_kb": 48384,
+       "user": 0.058911,
+       "sys": 0.036944,
+       "minflt": 12086,
+       "phases_us": null
+      },
+      {
+       "wall": 0.09633127320557833,
+       "maxrss_kb": 48384,
+       "user": 0.064154,
+       "sys": 0.031075,
+       "minflt": 12087,
+       "phases_us": null
+      },
+      {
+       "wall": 0.09636808512732387,
+       "maxrss_kb": 48384,
+       "user": 0.06114,
+       "sys": 0.034078,
+       "minflt": 12086,
+       "phases_us": null
+      },
+      {
+       "wall": 0.09770611068233848,
+       "maxrss_kb": 48384,
+       "user": 0.057747,
+       "sys": 0.038829999999999996,
+       "minflt": 12087,
+       "phases_us": null
+      },
+      {
+       "wall": 0.0960335354320705,
+       "maxrss_kb": 48384,
+       "user": 0.058962,
+       "sys": 0.035976999999999995,
+       "minflt": 12089,
+       "phases_us": null
+      },
+      {
+       "wall": 0.09633601363748312,
+       "maxrss_kb": 48384,
+       "user": 0.058119,
+       "sys": 0.037076,
+       "minflt": 12085,
+       "phases_us": null
+      },
+      {
+       "wall": 0.09553085081279278,
+       "maxrss_kb": 48384,
+       "user": 0.063301,
+       "sys": 0.031148,
+       "minflt": 12087,
+       "phases_us": null
+      },
+      {
+       "wall": 0.09599936380982399,
+       "maxrss_kb": 48384,
+       "user": 0.053975999999999996,
+       "sys": 0.040981,
+       "minflt": 12086,
+       "phases_us": null
+      },
+      {
+       "wall": 0.09585262089967728,
+       "maxrss_kb": 48384,
+       "user": 0.061833,
+       "sys": 0.032910999999999996,
+       "minflt": 12088,
+       "phases_us": null
+      },
+      {
+       "wall": 0.09567345585674047,
+       "maxrss_kb": 48384,
+       "user": 0.057773,
+       "sys": 0.036855,
+       "minflt": 12088,
+       "phases_us": null
+      },
+      {
+       "wall": 0.09722289862111211,
+       "maxrss_kb": 48384,
+       "user": 0.061069,
+       "sys": 0.03504,
+       "minflt": 12088,
+       "phases_us": null
+      },
+      {
+       "wall": 0.09603665582835674,
+       "maxrss_kb": 48384,
+       "user": 0.061856999999999995,
+       "sys": 0.032924,
+       "minflt": 12088,
+       "phases_us": null
+      },
+      {
+       "wall": 0.0961669790558517,
+       "maxrss_kb": 48384,
+       "user": 0.056498,
+       "sys": 0.038657,
+       "minflt": 12087,
+       "phases_us": null
+      },
+      {
+       "wall": 0.09624397195875645,
+       "maxrss_kb": 48384,
+       "user": 0.057144,
+       "sys": 0.038096,
+       "minflt": 12086,
+       "phases_us": null
+      },
+      {
+       "wall": 0.0981490551494062,
+       "maxrss_kb": 48384,
+       "user": 0.059099,
+       "sys": 0.038063,
+       "minflt": 12088,
+       "phases_us": null
+      },
+      {
+       "wall": 0.09547686111181974,
+       "maxrss_kb": 48384,
+       "user": 0.055742,
+       "sys": 0.03882,
+       "minflt": 12088,
+       "phases_us": null
+      },
+      {
+       "wall": 0.097354122903198,
+       "maxrss_kb": 48384,
+       "user": 0.057635,
+       "sys": 0.038754,
+       "minflt": 12089,
+       "phases_us": null
+      },
+      {
+       "wall": 0.09758819034323096,
+       "maxrss_kb": 48384,
+       "user": 0.053818,
+       "sys": 0.042855,
+       "minflt": 12086,
+       "phases_us": null
+      },
+      {
+       "wall": 0.10039020702242851,
+       "maxrss_kb": 48384,
+       "user": 0.06123,
+       "sys": 0.038142999999999996,
+       "minflt": 12089,
+       "phases_us": null
+      },
+      {
+       "wall": 0.09501703921705484,
+       "maxrss_kb": 48384,
+       "user": 0.057021999999999996,
+       "sys": 0.037014,
+       "minflt": 12088,
+       "phases_us": null
+      },
+      {
+       "wall": 0.09690134087577462,
+       "maxrss_kb": 48384,
+       "user": 0.053995999999999995,
+       "sys": 0.041997,
+       "minflt": 12086,
+       "phases_us": null
+      },
+      {
+       "wall": 0.09531124727800488,
+       "maxrss_kb": 48384,
+       "user": 0.055129,
+       "sys": 0.039091,
+       "minflt": 12084,
+       "phases_us": null
+      }
+     ],
+     "std-mimalloc": [
+      {
+       "wall": 0.09149799915030599,
+       "maxrss_kb": 52904,
+       "user": 0.057304999999999995,
+       "sys": 0.033176,
+       "minflt": 323,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08216218091547489,
+       "maxrss_kb": 52912,
+       "user": 0.049052,
+       "sys": 0.032034,
+       "minflt": 324,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08603214891627431,
+       "maxrss_kb": 52908,
+       "user": 0.050887999999999996,
+       "sys": 0.033925,
+       "minflt": 323,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08975000120699406,
+       "maxrss_kb": 52912,
+       "user": 0.055758999999999996,
+       "sys": 0.032858,
+       "minflt": 324,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08911568392068148,
+       "maxrss_kb": 52908,
+       "user": 0.051021,
+       "sys": 0.037015,
+       "minflt": 324,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08776510739699006,
+       "maxrss_kb": 52916,
+       "user": 0.051812,
+       "sys": 0.034873999999999995,
+       "minflt": 326,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08959542820230126,
+       "maxrss_kb": 52912,
+       "user": 0.054209999999999994,
+       "sys": 0.034131999999999996,
+       "minflt": 326,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08830250101163983,
+       "maxrss_kb": 52912,
+       "user": 0.054075,
+       "sys": 0.033046,
+       "minflt": 324,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08907304285094142,
+       "maxrss_kb": 52912,
+       "user": 0.051008,
+       "sys": 0.037004999999999996,
+       "minflt": 325,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08290512301027775,
+       "maxrss_kb": 52904,
+       "user": 0.047868,
+       "sys": 0.033906,
+       "minflt": 323,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08665033709257841,
+       "maxrss_kb": 52908,
+       "user": 0.047255,
+       "sys": 0.038206,
+       "minflt": 326,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08642201917245984,
+       "maxrss_kb": 52916,
+       "user": 0.051218,
+       "sys": 0.034145,
+       "minflt": 326,
+       "phases_us": null
+      },
+      {
+       "wall": 0.09076301008462906,
+       "maxrss_kb": 52912,
+       "user": 0.053417,
+       "sys": 0.036282999999999996,
+       "minflt": 325,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08521882724016905,
+       "maxrss_kb": 52908,
+       "user": 0.055047,
+       "sys": 0.029025,
+       "minflt": 323,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08838510373607278,
+       "maxrss_kb": 52908,
+       "user": 0.05321,
+       "sys": 0.034135,
+       "minflt": 326,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08905320381745696,
+       "maxrss_kb": 52908,
+       "user": 0.057072,
+       "sys": 0.031038999999999997,
+       "minflt": 324,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08925067912787199,
+       "maxrss_kb": 52908,
+       "user": 0.050067,
+       "sys": 0.038051,
+       "minflt": 326,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08217065315693617,
+       "maxrss_kb": 52912,
+       "user": 0.051094,
+       "sys": 0.030055,
+       "minflt": 326,
+       "phases_us": null
+      },
+      {
+       "wall": 0.09166106581687927,
+       "maxrss_kb": 52912,
+       "user": 0.057775999999999994,
+       "sys": 0.032872,
+       "minflt": 328,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08799941372126341,
+       "maxrss_kb": 52912,
+       "user": 0.055984,
+       "sys": 0.030990999999999998,
+       "minflt": 326,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08655353495851159,
+       "maxrss_kb": 52912,
+       "user": 0.053126,
+       "sys": 0.032076,
+       "minflt": 328,
+       "phases_us": null
+      },
+      {
+       "wall": 0.07671899301931262,
+       "maxrss_kb": 52908,
+       "user": 0.05175,
+       "sys": 0.023884,
+       "minflt": 326,
+       "phases_us": null
+      },
+      {
+       "wall": 0.09166055591776967,
+       "maxrss_kb": 52908,
+       "user": 0.057823,
+       "sys": 0.032899,
+       "minflt": 326,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08689428400248289,
+       "maxrss_kb": 52912,
+       "user": 0.054943,
+       "sys": 0.030968,
+       "minflt": 325,
+       "phases_us": null
+      },
+      {
+       "wall": 0.09025419689714909,
+       "maxrss_kb": 52912,
+       "user": 0.05508,
+       "sys": 0.034048999999999996,
+       "minflt": 326,
+       "phases_us": null
+      }
+     ],
+     "std-control": [
+      {
+       "wall": 0.08355309022590518,
+       "maxrss_kb": 43776,
+       "user": 0.053670999999999996,
+       "sys": 0.028822999999999998,
+       "minflt": 10942,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08547234302386642,
+       "maxrss_kb": 43776,
+       "user": 0.056256,
+       "sys": 0.028128,
+       "minflt": 10943,
+       "phases_us": null
+      },
+      {
+       "wall": 0.0844892761670053,
+       "maxrss_kb": 43776,
+       "user": 0.052173,
+       "sys": 0.031103,
+       "minflt": 10943,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08728409325703979,
+       "maxrss_kb": 43776,
+       "user": 0.050115,
+       "sys": 0.036083,
+       "minflt": 10942,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08444720506668091,
+       "maxrss_kb": 43776,
+       "user": 0.052257,
+       "sys": 0.031153,
+       "minflt": 10942,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08438651310279965,
+       "maxrss_kb": 43776,
+       "user": 0.047623,
+       "sys": 0.035717,
+       "minflt": 10944,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08429147023707628,
+       "maxrss_kb": 43776,
+       "user": 0.050169,
+       "sys": 0.033111,
+       "minflt": 10943,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08370780386030674,
+       "maxrss_kb": 43776,
+       "user": 0.046335999999999995,
+       "sys": 0.036263,
+       "minflt": 10943,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08445378532633185,
+       "maxrss_kb": 43776,
+       "user": 0.050248,
+       "sys": 0.033163,
+       "minflt": 10941,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08383392821997404,
+       "maxrss_kb": 43776,
+       "user": 0.0409,
+       "sys": 0.041897,
+       "minflt": 10942,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08455911930650473,
+       "maxrss_kb": 43776,
+       "user": 0.047706,
+       "sys": 0.03578,
+       "minflt": 10942,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08442864520475268,
+       "maxrss_kb": 43776,
+       "user": 0.04553,
+       "sys": 0.037612,
+       "minflt": 10944,
+       "phases_us": null
+      },
+      {
+       "wall": 0.0851756245829165,
+       "maxrss_kb": 43776,
+       "user": 0.045094999999999996,
+       "sys": 0.039082,
+       "minflt": 10941,
+       "phases_us": null
+      },
+      {
+       "wall": 0.0837796782143414,
+       "maxrss_kb": 43776,
+       "user": 0.044805,
+       "sys": 0.037835,
+       "minflt": 10943,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08351211994886398,
+       "maxrss_kb": 43776,
+       "user": 0.050677,
+       "sys": 0.031797,
+       "minflt": 10943,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08546930365264416,
+       "maxrss_kb": 43776,
+       "user": 0.047278999999999995,
+       "sys": 0.037218999999999995,
+       "minflt": 10944,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08508278336375952,
+       "maxrss_kb": 43776,
+       "user": 0.050906,
+       "sys": 0.032938999999999996,
+       "minflt": 10942,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08456690888851881,
+       "maxrss_kb": 43776,
+       "user": 0.056677,
+       "sys": 0.026847,
+       "minflt": 10943,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08916636696085334,
+       "maxrss_kb": 43776,
+       "user": 0.048284,
+       "sys": 0.035206999999999995,
+       "minflt": 10942,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08657839521765709,
+       "maxrss_kb": 43776,
+       "user": 0.052301999999999994,
+       "sys": 0.033191,
+       "minflt": 10943,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08389663090929389,
+       "maxrss_kb": 43776,
+       "user": 0.049964999999999996,
+       "sys": 0.032976,
+       "minflt": 10943,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08515008632093668,
+       "maxrss_kb": 43776,
+       "user": 0.052097,
+       "sys": 0.032059,
+       "minflt": 10943,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08388468064367771,
+       "maxrss_kb": 43776,
+       "user": 0.053953,
+       "sys": 0.028974999999999997,
+       "minflt": 10941,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08309526927769184,
+       "maxrss_kb": 43776,
+       "user": 0.048083,
+       "sys": 0.034059,
+       "minflt": 10942,
+       "phases_us": null
+      },
+      {
+       "wall": 0.08444811683148146,
+       "maxrss_kb": 43776,
+       "user": 0.054182999999999995,
+       "sys": 0.029098,
+       "minflt": 10943,
+       "phases_us": null
+      }
+     ],
+     "ordstack": [
+      {
+       "wall": 0.03430294804275036,
+       "maxrss_kb": 16128,
+       "user": 0.019152,
+       "sys": 0.014112,
+       "minflt": 4085,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03390461718663573,
+       "maxrss_kb": 16128,
+       "user": 0.021877999999999998,
+       "sys": 0.010938999999999999,
+       "minflt": 4086,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03490125387907028,
+       "maxrss_kb": 16128,
+       "user": 0.01984,
+       "sys": 0.013888,
+       "minflt": 4087,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03449740307405591,
+       "maxrss_kb": 16128,
+       "user": 0.020699,
+       "sys": 0.012813,
+       "minflt": 4085,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03481379197910428,
+       "maxrss_kb": 16896,
+       "user": 0.020457,
+       "sys": 0.013297,
+       "minflt": 4088,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03416179399937391,
+       "maxrss_kb": 16896,
+       "user": 0.019118,
+       "sys": 0.014086999999999999,
+       "minflt": 4088,
+       "phases_us": null
+      },
+      {
+       "wall": 0.034539645072072744,
+       "maxrss_kb": 16128,
+       "user": 0.023353,
+       "sys": 0.010152999999999999,
+       "minflt": 4087,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03462387714534998,
+       "maxrss_kb": 16128,
+       "user": 0.018328999999999998,
+       "sys": 0.015274,
+       "minflt": 4085,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03417366510257125,
+       "maxrss_kb": 16128,
+       "user": 0.02009,
+       "sys": 0.013059,
+       "minflt": 4087,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03420880623161793,
+       "maxrss_kb": 16128,
+       "user": 0.017127,
+       "sys": 0.01612,
+       "minflt": 4085,
+       "phases_us": null
+      },
+      {
+       "wall": 0.034693548921495676,
+       "maxrss_kb": 16896,
+       "user": 0.02274,
+       "sys": 0.010875,
+       "minflt": 4089,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03446137299761176,
+       "maxrss_kb": 16128,
+       "user": 0.01968,
+       "sys": 0.013776,
+       "minflt": 4086,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03466742858290672,
+       "maxrss_kb": 16896,
+       "user": 0.018803,
+       "sys": 0.014844999999999999,
+       "minflt": 4089,
+       "phases_us": null
+      },
+      {
+       "wall": 0.034386121202260256,
+       "maxrss_kb": 16128,
+       "user": 0.017646,
+       "sys": 0.015685,
+       "minflt": 4086,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03484863415360451,
+       "maxrss_kb": 16128,
+       "user": 0.021870999999999998,
+       "sys": 0.011928999999999999,
+       "minflt": 4087,
+       "phases_us": null
+      },
+      {
+       "wall": 0.034687069710344076,
+       "maxrss_kb": 16896,
+       "user": 0.019829,
+       "sys": 0.01388,
+       "minflt": 4088,
+       "phases_us": null
+      },
+      {
+       "wall": 0.0350972106680274,
+       "maxrss_kb": 16128,
+       "user": 0.017006,
+       "sys": 0.017006,
+       "minflt": 4088,
+       "phases_us": null
+      },
+      {
+       "wall": 0.034788912162184715,
+       "maxrss_kb": 16128,
+       "user": 0.022883,
+       "sys": 0.010943999999999999,
+       "minflt": 4086,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03447994403541088,
+       "maxrss_kb": 16128,
+       "user": 0.019209,
+       "sys": 0.014154,
+       "minflt": 4088,
+       "phases_us": null
+      },
+      {
+       "wall": 0.034064732026308775,
+       "maxrss_kb": 16128,
+       "user": 0.016016,
+       "sys": 0.017017,
+       "minflt": 4087,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03438495099544525,
+       "maxrss_kb": 16128,
+       "user": 0.021304999999999998,
+       "sys": 0.012173999999999999,
+       "minflt": 4088,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03487646486610174,
+       "maxrss_kb": 16128,
+       "user": 0.018373,
+       "sys": 0.015311,
+       "minflt": 4085,
+       "phases_us": null
+      },
+      {
+       "wall": 0.033673361875116825,
+       "maxrss_kb": 16896,
+       "user": 0.020793,
+       "sys": 0.011882,
+       "minflt": 4088,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03408324299380183,
+       "maxrss_kb": 16128,
+       "user": 0.01852,
+       "sys": 0.014620999999999999,
+       "minflt": 4087,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03537259856238961,
+       "maxrss_kb": 16128,
+       "user": 0.021648,
+       "sys": 0.012792,
+       "minflt": 4087,
+       "phases_us": null
+      }
+     ],
+     "bumpalo": [
+      {
+       "wall": 0.054084674920886755,
+       "maxrss_kb": 28416,
+       "user": 0.032038,
+       "sys": 0.021025,
+       "minflt": 7096,
+       "phases_us": null
+      },
+      {
+       "wall": 0.054377682972699404,
+       "maxrss_kb": 28416,
+       "user": 0.035137,
+       "sys": 0.01807,
+       "minflt": 7097,
+       "phases_us": null
+      },
+      {
+       "wall": 0.05418446799740195,
+       "maxrss_kb": 28416,
+       "user": 0.027045999999999997,
+       "sys": 0.026045,
+       "minflt": 7097,
+       "phases_us": null
+      },
+      {
+       "wall": 0.053949442226439714,
+       "maxrss_kb": 28416,
+       "user": 0.03351,
+       "sys": 0.019294,
+       "minflt": 7097,
+       "phases_us": null
+      },
+      {
+       "wall": 0.05473140301182866,
+       "maxrss_kb": 28416,
+       "user": 0.026837999999999997,
+       "sys": 0.026837999999999997,
+       "minflt": 7096,
+       "phases_us": null
+      },
+      {
+       "wall": 0.05468542221933603,
+       "maxrss_kb": 28416,
+       "user": 0.035744,
+       "sys": 0.017872,
+       "minflt": 7097,
+       "phases_us": null
+      },
+      {
+       "wall": 0.054982149973511696,
+       "maxrss_kb": 28416,
+       "user": 0.029899,
+       "sys": 0.023919,
+       "minflt": 7099,
+       "phases_us": null
+      },
+      {
+       "wall": 0.053827257826924324,
+       "maxrss_kb": 28416,
+       "user": 0.028874999999999998,
+       "sys": 0.023896999999999998,
+       "minflt": 7098,
+       "phases_us": null
+      },
+      {
+       "wall": 0.054486415814608335,
+       "maxrss_kb": 28416,
+       "user": 0.028165,
+       "sys": 0.025147,
+       "minflt": 7098,
+       "phases_us": null
+      },
+      {
+       "wall": 0.05358928209170699,
+       "maxrss_kb": 28416,
+       "user": 0.031242,
+       "sys": 0.021164,
+       "minflt": 7098,
+       "phases_us": null
+      },
+      {
+       "wall": 0.05501914210617542,
+       "maxrss_kb": 28416,
+       "user": 0.030945999999999998,
+       "sys": 0.022959999999999998,
+       "minflt": 7096,
+       "phases_us": null
+      },
+      {
+       "wall": 0.054300530813634396,
+       "maxrss_kb": 28416,
+       "user": 0.027544,
+       "sys": 0.025575999999999998,
+       "minflt": 7098,
+       "phases_us": null
+      },
+      {
+       "wall": 0.05445814598351717,
+       "maxrss_kb": 28416,
+       "user": 0.03267,
+       "sys": 0.02079,
+       "minflt": 7097,
+       "phases_us": null
+      },
+      {
+       "wall": 0.05478328512981534,
+       "maxrss_kb": 28416,
+       "user": 0.029816,
+       "sys": 0.023853,
+       "minflt": 7099,
+       "phases_us": null
+      },
+      {
+       "wall": 0.05463436059653759,
+       "maxrss_kb": 28416,
+       "user": 0.029727,
+       "sys": 0.023781,
+       "minflt": 7098,
+       "phases_us": null
+      },
+      {
+       "wall": 0.05493542039766908,
+       "maxrss_kb": 28416,
+       "user": 0.030399,
+       "sys": 0.023306,
+       "minflt": 7099,
+       "phases_us": null
+      },
+      {
+       "wall": 0.05462585110217333,
+       "maxrss_kb": 28416,
+       "user": 0.025315999999999998,
+       "sys": 0.028353999999999997,
+       "minflt": 7098,
+       "phases_us": null
+      },
+      {
+       "wall": 0.05466761300340295,
+       "maxrss_kb": 28416,
+       "user": 0.034642,
+       "sys": 0.018805,
+       "minflt": 7101,
+       "phases_us": null
+      },
+      {
+       "wall": 0.05462907114997506,
+       "maxrss_kb": 28416,
+       "user": 0.027319999999999997,
+       "sys": 0.026307999999999998,
+       "minflt": 7099,
+       "phases_us": null
+      },
+      {
+       "wall": 0.05356075195595622,
+       "maxrss_kb": 28416,
+       "user": 0.032730999999999996,
+       "sys": 0.019837,
+       "minflt": 7101,
+       "phases_us": null
+      },
+      {
+       "wall": 0.05465560220181942,
+       "maxrss_kb": 28416,
+       "user": 0.031875,
+       "sys": 0.021914,
+       "minflt": 7096,
+       "phases_us": null
+      },
+      {
+       "wall": 0.054219009820371866,
+       "maxrss_kb": 28416,
+       "user": 0.029217999999999997,
+       "sys": 0.02418,
+       "minflt": 7099,
+       "phases_us": null
+      },
+      {
+       "wall": 0.054345394019037485,
+       "maxrss_kb": 28416,
+       "user": 0.032230999999999996,
+       "sys": 0.021152,
+       "minflt": 7097,
+       "phases_us": null
+      },
+      {
+       "wall": 0.05537579208612442,
+       "maxrss_kb": 28416,
+       "user": 0.038265,
+       "sys": 0.016111,
+       "minflt": 7099,
+       "phases_us": null
+      },
+      {
+       "wall": 0.0535121108405292,
+       "maxrss_kb": 28416,
+       "user": 0.027777999999999997,
+       "sys": 0.024801,
+       "minflt": 7097,
+       "phases_us": null
+      }
+     ],
+     "bumpalo-frozen": [
+      {
+       "wall": 0.035962603986263275,
+       "maxrss_kb": 19200,
+       "user": 0.015924999999999998,
+       "sys": 0.018911,
+       "minflt": 4811,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03633562522009015,
+       "maxrss_kb": 19200,
+       "user": 0.01409,
+       "sys": 0.021136,
+       "minflt": 4810,
+       "phases_us": null
+      },
+      {
+       "wall": 0.036182810086756945,
+       "maxrss_kb": 19200,
+       "user": 0.020085,
+       "sys": 0.015064,
+       "minflt": 4811,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03561821486800909,
+       "maxrss_kb": 19200,
+       "user": 0.021695,
+       "sys": 0.012818999999999999,
+       "minflt": 4809,
+       "phases_us": null
+      },
+      {
+       "wall": 0.036687193904072046,
+       "maxrss_kb": 19200,
+       "user": 0.023327,
+       "sys": 0.012171,
+       "minflt": 4809,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03615148877725005,
+       "maxrss_kb": 19200,
+       "user": 0.023042,
+       "sys": 0.012022,
+       "minflt": 4812,
+       "phases_us": null
+      },
+      {
+       "wall": 0.035550653003156185,
+       "maxrss_kb": 19200,
+       "user": 0.016773,
+       "sys": 0.017759999999999998,
+       "minflt": 4811,
+       "phases_us": null
+      },
+      {
+       "wall": 0.036007295828312635,
+       "maxrss_kb": 19200,
+       "user": 0.019891,
+       "sys": 0.014917999999999999,
+       "minflt": 4810,
+       "phases_us": null
+      },
+      {
+       "wall": 0.036504860036075115,
+       "maxrss_kb": 19200,
+       "user": 0.022283999999999998,
+       "sys": 0.013167,
+       "minflt": 4811,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03538127802312374,
+       "maxrss_kb": 19200,
+       "user": 0.01815,
+       "sys": 0.016132999999999998,
+       "minflt": 4811,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03662116313353181,
+       "maxrss_kb": 19200,
+       "user": 0.01721,
+       "sys": 0.018222,
+       "minflt": 4811,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03566484618932009,
+       "maxrss_kb": 19200,
+       "user": 0.019274,
+       "sys": 0.015215999999999999,
+       "minflt": 4810,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03753927815705538,
+       "maxrss_kb": 19200,
+       "user": 0.016149,
+       "sys": 0.020186,
+       "minflt": 4812,
+       "phases_us": null
+      },
+      {
+       "wall": 0.036676984280347824,
+       "maxrss_kb": 19200,
+       "user": 0.016849,
+       "sys": 0.018831999999999998,
+       "minflt": 4809,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03573654778301716,
+       "maxrss_kb": 19200,
+       "user": 0.018809,
+       "sys": 0.015839,
+       "minflt": 4811,
+       "phases_us": null
+      },
+      {
+       "wall": 0.035474220756441355,
+       "maxrss_kb": 19200,
+       "user": 0.020298999999999998,
+       "sys": 0.014209,
+       "minflt": 4810,
+       "phases_us": null
+      },
+      {
+       "wall": 0.036780857015401125,
+       "maxrss_kb": 19200,
+       "user": 0.023902,
+       "sys": 0.011951,
+       "minflt": 4813,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03552111191675067,
+       "maxrss_kb": 19200,
+       "user": 0.018755,
+       "sys": 0.015792999999999998,
+       "minflt": 4812,
+       "phases_us": null
+      },
+      {
+       "wall": 0.036141290329396725,
+       "maxrss_kb": 19200,
+       "user": 0.026114,
+       "sys": 0.009039,
+       "minflt": 4813,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03672297578305006,
+       "maxrss_kb": 19200,
+       "user": 0.022885,
+       "sys": 0.012934999999999999,
+       "minflt": 4811,
+       "phases_us": null
+      },
+      {
+       "wall": 0.036475708708167076,
+       "maxrss_kb": 19200,
+       "user": 0.017259,
+       "sys": 0.018275,
+       "minflt": 4813,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03693301184102893,
+       "maxrss_kb": 19200,
+       "user": 0.01398,
+       "sys": 0.021969,
+       "minflt": 4812,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03608420817181468,
+       "maxrss_kb": 19200,
+       "user": 0.018559,
+       "sys": 0.016604999999999998,
+       "minflt": 4812,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03541948972269893,
+       "maxrss_kb": 19200,
+       "user": 0.017786,
+       "sys": 0.016798,
+       "minflt": 4808,
+       "phases_us": null
+      },
+      {
+       "wall": 0.03537650918588042,
+       "maxrss_kb": 19200,
+       "user": 0.015732,
+       "sys": 0.018682,
+       "minflt": 4810,
+       "phases_us": null
+      }
+     ]
+    }
+   ],
+   "perf": {
+    "std": [
+     {
+      "instructions:u": 380797954,
+      "instructions": 438528330,
+      "cycles": 298495045
+     },
+     {
+      "instructions:u": 380798259,
+      "instructions": 437926780,
+      "cycles": 291149178
+     },
+     {
+      "instructions:u": 380798061,
+      "instructions": 437906010,
+      "cycles": 289712313
+     },
+     {
+      "instructions:u": 380797963,
+      "instructions": 437926061,
+      "cycles": 289936818
+     },
+     {
+      "instructions:u": 380798055,
+      "instructions": 437922407,
+      "cycles": 294238328
+     },
+     {
+      "instructions:u": 380798187,
+      "instructions": 438122564,
+      "cycles": 288354829
+     },
+     {
+      "instructions:u": 380797824,
+      "instructions": 437905875,
+      "cycles": 286310250
+     }
+    ],
+    "std-mimalloc": [
+     {
+      "instructions:u": 283295117,
+      "instructions": 375796064,
+      "cycles": 273459001
+     },
+     {
+      "instructions:u": 283294858,
+      "instructions": 328787384,
+      "cycles": 240504881
+     },
+     {
+      "instructions:u": 283294551,
+      "instructions": 387099615,
+      "cycles": 306680767
+     },
+     {
+      "instructions:u": 283294383,
+      "instructions": 375890733,
+      "cycles": 282348551
+     },
+     {
+      "instructions:u": 283294227,
+      "instructions": 375856144,
+      "cycles": 281498778
+     },
+     {
+      "instructions:u": 283294921,
+      "instructions": 375966531,
+      "cycles": 273442365
+     },
+     {
+      "instructions:u": 283295290,
+      "instructions": 375947227,
+      "cycles": 269145478
+     }
+    ],
+    "std-control": [
+     {
+      "instructions:u": 348057717,
+      "instructions": 399739166,
+      "cycles": 257317240
+     },
+     {
+      "instructions:u": 348058484,
+      "instructions": 400305361,
+      "cycles": 264053957
+     },
+     {
+      "instructions:u": 348057566,
+      "instructions": 399767924,
+      "cycles": 255010645
+     },
+     {
+      "instructions:u": 348058092,
+      "instructions": 399755472,
+      "cycles": 254884725
+     },
+     {
+      "instructions:u": 348058023,
+      "instructions": 399776201,
+      "cycles": 256940666
+     },
+     {
+      "instructions:u": 348058027,
+      "instructions": 399705489,
+      "cycles": 245595192
+     },
+     {
+      "instructions:u": 348057816,
+      "instructions": 399703323,
+      "cycles": 253715136
+     }
+    ],
+    "ordstack": [
+     {
+      "instructions:u": 167541402,
+      "instructions": 191982871,
+      "cycles": 101080484
+     },
+     {
+      "instructions:u": 167541610,
+      "instructions": 192082804,
+      "cycles": 102751870
+     },
+     {
+      "instructions:u": 167541450,
+      "instructions": 191994424,
+      "cycles": 100476196
+     },
+     {
+      "instructions:u": 167541377,
+      "instructions": 192010269,
+      "cycles": 102222045
+     },
+     {
+      "instructions:u": 167541449,
+      "instructions": 191989221,
+      "cycles": 100650445
+     },
+     {
+      "instructions:u": 167541598,
+      "instructions": 191989323,
+      "cycles": 100057451
+     },
+     {
+      "instructions:u": 167541527,
+      "instructions": 192012457,
+      "cycles": 100917331
+     }
+    ],
+    "bumpalo": [
+     {
+      "instructions:u": 169830431,
+      "instructions": 212848514,
+      "cycles": 172289794
+     },
+     {
+      "instructions:u": 169830809,
+      "instructions": 212688316,
+      "cycles": 173987978
+     },
+     {
+      "instructions:u": 169829964,
+      "instructions": 212479642,
+      "cycles": 172389267
+     },
+     {
+      "instructions:u": 169830040,
+      "instructions": 212501487,
+      "cycles": 167014386
+     },
+     {
+      "instructions:u": 169830181,
+      "instructions": 212500287,
+      "cycles": 170940171
+     },
+     {
+      "instructions:u": 169829683,
+      "instructions": 212457879,
+      "cycles": 170604566
+     },
+     {
+      "instructions:u": 169829877,
+      "instructions": 212781842,
+      "cycles": 168014605
+     }
+    ],
+    "bumpalo-frozen": [
+     {
+      "instructions:u": 151957856,
+      "instructions": 180803602,
+      "cycles": 108823974
+     },
+     {
+      "instructions:u": 151957109,
+      "instructions": 180839318,
+      "cycles": 108982469
+     },
+     {
+      "instructions:u": 151957335,
+      "instructions": 180783801,
+      "cycles": 108264987
+     },
+     {
+      "instructions:u": 151957098,
+      "instructions": 180809617,
+      "cycles": 104627895
+     },
+     {
+      "instructions:u": 151957791,
+      "instructions": 180814361,
+      "cycles": 107439206
+     },
+     {
+      "instructions:u": 151957188,
+      "instructions": 180837331,
+      "cycles": 106836873
+     },
+     {
+      "instructions:u": 151957542,
+      "instructions": 180774041,
+      "cycles": 105877786
+     }
+    ]
+   },
+   "perf_core": 67,
+   "rss_time_kb": {
+    "std": [
+     48384,
+     48384,
+     48384,
+     48384,
+     48384
+    ],
+    "std-mimalloc": [
+     52908,
+     52908,
+     52912,
+     52916,
+     52904
+    ],
+    "std-control": [
+     43776,
+     43776,
+     43776,
+     43776,
+     43776
+    ],
+    "ordstack": [
+     16128,
+     16128,
+     16896,
+     16896,
+     16128
+    ],
+    "bumpalo": [
+     28416,
+     28416,
+     28416,
+     28416,
+     28416
+    ],
+    "bumpalo-frozen": [
+     19200,
+     19200,
+     19200,
+     19200,
+     19200
+    ]
+   }
+  },
+  "treebuild-d8": {
+   "program": "treebuild",
+   "args": [
+    "8"
+   ],
+   "core": 86,
+   "load": {
+    "loadavg_before": [
+     "32.93",
+     "19.27",
+     "11.72"
+    ],
+    "core_busy_before": {
+     "86": 1.7
+    },
+    "system_busy_before": 32.1,
+    "loadavg_after": [
+     "36.59",
+     "22.52",
+     "13.27"
+    ],
+    "siblings_busy_during": {},
+    "system_busy_during": 34.8
+   },
+   "max_rel_iqr": 0.022472263201592423,
+   "runs": {
+    "std": [
+     {
+      "wall": 0.48136237589642406,
+      "maxrss_kb": 243456,
+      "user": 0.295655,
+      "sys": 0.184784,
+      "minflt": 60920,
+      "phases_us": null
+     },
+     {
+      "wall": 0.4880840973928571,
+      "maxrss_kb": 243456,
+      "user": 0.310037,
+      "sys": 0.17702099999999998,
+      "minflt": 60919,
+      "phases_us": null
+     },
+     {
+      "wall": 0.4811392556875944,
+      "maxrss_kb": 243456,
+      "user": 0.30489099999999997,
+      "sys": 0.17493699999999998,
+      "minflt": 60919,
+      "phases_us": null
+     },
+     {
+      "wall": 0.4805086418054998,
+      "maxrss_kb": 243456,
+      "user": 0.319262,
+      "sys": 0.160131,
+      "minflt": 60919,
+      "phases_us": null
+     },
+     {
+      "wall": 0.480218016076833,
+      "maxrss_kb": 243456,
+      "user": 0.291049,
+      "sys": 0.188031,
+      "minflt": 60919,
+      "phases_us": null
+     },
+     {
+      "wall": 0.481330840382725,
+      "maxrss_kb": 243456,
+      "user": 0.313098,
+      "sys": 0.167052,
+      "minflt": 60919,
+      "phases_us": null
+     },
+     {
+      "wall": 0.47609838703647256,
+      "maxrss_kb": 243456,
+      "user": 0.295304,
+      "sys": 0.179577,
+      "minflt": 60919,
+      "phases_us": null
+     },
+     {
+      "wall": 0.48529296834021807,
+      "maxrss_kb": 243456,
+      "user": 0.305056,
+      "sys": 0.179033,
+      "minflt": 60921,
+      "phases_us": null
+     },
+     {
+      "wall": 0.4824931318871677,
+      "maxrss_kb": 243456,
+      "user": 0.290967,
+      "sys": 0.18997799999999998,
+      "minflt": 60923,
+      "phases_us": null
+     },
+     {
+      "wall": 0.48942626686766744,
+      "maxrss_kb": 243456,
+      "user": 0.30654,
+      "sys": 0.181727,
+      "minflt": 60921,
+      "phases_us": null
+     },
+     {
+      "wall": 0.48464836832135916,
+      "maxrss_kb": 243456,
+      "user": 0.30780799999999997,
+      "sys": 0.17589,
+      "minflt": 60922,
+      "phases_us": null
+     },
+     {
+      "wall": 0.4841563170775771,
+      "maxrss_kb": 243456,
+      "user": 0.292051,
+      "sys": 0.19103299999999998,
+      "minflt": 60922,
+      "phases_us": null
+     },
+     {
+      "wall": 0.48106976272538304,
+      "maxrss_kb": 243456,
+      "user": 0.30802199999999996,
+      "sys": 0.172012,
+      "minflt": 60922,
+      "phases_us": null
+     },
+     {
+      "wall": 0.4903294355608523,
+      "maxrss_kb": 243456,
+      "user": 0.30216699999999996,
+      "sys": 0.187103,
+      "minflt": 60920,
+      "phases_us": null
+     },
+     {
+      "wall": 0.48231193609535694,
+      "maxrss_kb": 243456,
+      "user": 0.275047,
+      "sys": 0.206035,
+      "minflt": 60921,
+      "phases_us": null
+     },
+     {
+      "wall": 0.48345268005505204,
+      "maxrss_kb": 243456,
+      "user": 0.302108,
+      "sys": 0.180064,
+      "minflt": 60919,
+      "phases_us": null
+     },
+     {
+      "wall": 0.48831845819950104,
+      "maxrss_kb": 243456,
+      "user": 0.31009,
+      "sys": 0.177051,
+      "minflt": 60921,
+      "phases_us": null
+     },
+     {
+      "wall": 0.4774588979780674,
+      "maxrss_kb": 243456,
+      "user": 0.304172,
+      "sys": 0.172097,
+      "minflt": 60921,
+      "phases_us": null
+     },
+     {
+      "wall": 0.4814229910261929,
+      "maxrss_kb": 243456,
+      "user": 0.302552,
+      "sys": 0.177736,
+      "minflt": 60922,
+      "phases_us": null
+     },
+     {
+      "wall": 0.47707369504496455,
+      "maxrss_kb": 243456,
+      "user": 0.30696799999999996,
+      "sys": 0.168982,
+      "minflt": 60920,
+      "phases_us": null
+     },
+     {
+      "wall": 0.4815068608149886,
+      "maxrss_kb": 243456,
+      "user": 0.300275,
+      "sys": 0.180165,
+      "minflt": 60921,
+      "phases_us": null
+     },
+     {
+      "wall": 0.48059897776693106,
+      "maxrss_kb": 243456,
+      "user": 0.312687,
+      "sys": 0.16683299999999998,
+      "minflt": 60922,
+      "phases_us": null
+     },
+     {
+      "wall": 0.4800897971726954,
+      "maxrss_kb": 243456,
+      "user": 0.307062,
+      "sys": 0.172035,
+      "minflt": 60922,
+      "phases_us": null
+     },
+     {
+      "wall": 0.47894792817533016,
+      "maxrss_kb": 243456,
+      "user": 0.306851,
+      "sys": 0.17091699999999999,
+      "minflt": 60921,
+      "phases_us": null
+     },
+     {
+      "wall": 0.481651715002954,
+      "maxrss_kb": 243456,
+      "user": 0.300744,
+      "sys": 0.17984699999999998,
+      "minflt": 60920,
+      "phases_us": null
+     }
+    ],
+    "std-mimalloc": [
+     {
+      "wall": 0.5725918030366302,
+      "maxrss_kb": 241348,
+      "user": 0.26261999999999996,
+      "sys": 0.308554,
+      "minflt": 426,
+      "phases_us": null
+     },
+     {
+      "wall": 0.5903129070065916,
+      "maxrss_kb": 241352,
+      "user": 0.285756,
+      "sys": 0.302742,
+      "minflt": 429,
+      "phases_us": null
+     },
+     {
+      "wall": 0.5806122948415577,
+      "maxrss_kb": 241348,
+      "user": 0.26861999999999997,
+      "sys": 0.310561,
+      "minflt": 425,
+      "phases_us": null
+     },
+     {
+      "wall": 0.5899011148139834,
+      "maxrss_kb": 241348,
+      "user": 0.279244,
+      "sys": 0.30927099999999996,
+      "minflt": 427,
+      "phases_us": null
+     },
+     {
+      "wall": 0.5767377130687237,
+      "maxrss_kb": 241348,
+      "user": 0.26776099999999997,
+      "sys": 0.307726,
+      "minflt": 427,
+      "phases_us": null
+     },
+     {
+      "wall": 0.5825100168585777,
+      "maxrss_kb": 241352,
+      "user": 0.270187,
+      "sys": 0.31121499999999996,
+      "minflt": 429,
+      "phases_us": null
+     },
+     {
+      "wall": 0.5943472990766168,
+      "maxrss_kb": 241348,
+      "user": 0.283623,
+      "sys": 0.309588,
+      "minflt": 427,
+      "phases_us": null
+     },
+     {
+      "wall": 0.5908475639298558,
+      "maxrss_kb": 241352,
+      "user": 0.279615,
+      "sys": 0.309573,
+      "minflt": 429,
+      "phases_us": null
+     },
+     {
+      "wall": 0.5834382250905037,
+      "maxrss_kb": 241348,
+      "user": 0.277395,
+      "sys": 0.304336,
+      "minflt": 428,
+      "phases_us": null
+     },
+     {
+      "wall": 0.5807483848184347,
+      "maxrss_kb": 241352,
+      "user": 0.270727,
+      "sys": 0.308689,
+      "minflt": 430,
+      "phases_us": null
+     },
+     {
+      "wall": 0.5318381590768695,
+      "maxrss_kb": 241352,
+      "user": 0.283197,
+      "sys": 0.24717199999999998,
+      "minflt": 432,
+      "phases_us": null
+     },
+     {
+      "wall": 0.5892950780689716,
+      "maxrss_kb": 241348,
+      "user": 0.281003,
+      "sys": 0.30700299999999997,
+      "minflt": 429,
+      "phases_us": null
+     },
+     {
+      "wall": 0.5995575059205294,
+      "maxrss_kb": 241352,
+      "user": 0.292158,
+      "sys": 0.306166,
+      "minflt": 428,
+      "phases_us": null
+     },
+     {
+      "wall": 0.5786745678633451,
+      "maxrss_kb": 241348,
+      "user": 0.27579899999999996,
+      "sys": 0.30178099999999997,
+      "minflt": 428,
+      "phases_us": null
+     },
+     {
+      "wall": 0.594014051835984,
+      "maxrss_kb": 241348,
+      "user": 0.28900899999999996,
+      "sys": 0.304009,
+      "minflt": 426,
+      "phases_us": null
+     },
+     {
+      "wall": 0.593016907107085,
+      "maxrss_kb": 241352,
+      "user": 0.281732,
+      "sys": 0.309706,
+      "minflt": 427,
+      "phases_us": null
+     },
+     {
+      "wall": 0.588014479726553,
+      "maxrss_kb": 241352,
+      "user": 0.282816,
+      "sys": 0.30380199999999996,
+      "minflt": 428,
+      "phases_us": null
+     },
+     {
+      "wall": 0.5805728766135871,
+      "maxrss_kb": 241348,
+      "user": 0.269933,
+      "sys": 0.308924,
+      "minflt": 429,
+      "phases_us": null
+     },
+     {
+      "wall": 0.5986775737255812,
+      "maxrss_kb": 241352,
+      "user": 0.291808,
+      "sys": 0.30479999999999996,
+      "minflt": 429,
+      "phases_us": null
+     },
+     {
+      "wall": 0.5999328321777284,
+      "maxrss_kb": 241356,
+      "user": 0.29387599999999997,
+      "sys": 0.304871,
+      "minflt": 430,
+      "phases_us": null
+     },
+     {
+      "wall": 0.5949594988487661,
+      "maxrss_kb": 241352,
+      "user": 0.28985,
+      "sys": 0.303843,
+      "minflt": 429,
+      "phases_us": null
+     },
+     {
+      "wall": 0.5931779332458973,
+      "maxrss_kb": 241352,
+      "user": 0.280014,
+      "sys": 0.31201599999999996,
+      "minflt": 431,
+      "phases_us": null
+     },
+     {
+      "wall": 0.5920923859812319,
+      "maxrss_kb": 241352,
+      "user": 0.282987,
+      "sys": 0.307986,
+      "minflt": 427,
+      "phases_us": null
+     },
+     {
+      "wall": 0.5918912631459534,
+      "maxrss_kb": 241348,
+      "user": 0.28293799999999997,
+      "sys": 0.307933,
+      "minflt": 429,
+      "phases_us": null
+     },
+     {
+      "wall": 0.597521954216063,
+      "maxrss_kb": 241348,
+      "user": 0.28304399999999996,
+      "sys": 0.31304899999999997,
+      "minflt": 428,
+      "phases_us": null
+     }
+    ],
+    "std-control": [
+     {
+      "wall": 0.4146092967130244,
+      "maxrss_kb": 221184,
+      "user": 0.250807,
+      "sys": 0.162874,
+      "minflt": 55199,
+      "phases_us": null
+     },
+     {
+      "wall": 0.4117211792618036,
+      "maxrss_kb": 221184,
+      "user": 0.25983,
+      "sys": 0.15090099999999998,
+      "minflt": 55195,
+      "phases_us": null
+     },
+     {
+      "wall": 0.41605011094361544,
+      "maxrss_kb": 221184,
+      "user": 0.245329,
+      "sys": 0.169536,
+      "minflt": 55197,
+      "phases_us": null
+     },
+     {
+      "wall": 0.41018473310396075,
+      "maxrss_kb": 221184,
+      "user": 0.241143,
+      "sys": 0.168099,
+      "minflt": 55196,
+      "phases_us": null
+     },
+     {
+      "wall": 0.41686993185430765,
+      "maxrss_kb": 221184,
+      "user": 0.266271,
+      "sys": 0.149151,
+      "minflt": 55197,
+      "phases_us": null
+     },
+     {
+      "wall": 0.4131946712732315,
+      "maxrss_kb": 221184,
+      "user": 0.248101,
+      "sys": 0.164067,
+      "minflt": 55197,
+      "phases_us": null
+     },
+     {
+      "wall": 0.41201091138646007,
+      "maxrss_kb": 221184,
+      "user": 0.253844,
+      "sys": 0.156903,
+      "minflt": 55197,
+      "phases_us": null
+     },
+     {
+      "wall": 0.4242417421191931,
+      "maxrss_kb": 221184,
+      "user": 0.25321099999999996,
+      "sys": 0.170142,
+      "minflt": 55199,
+      "phases_us": null
+     },
+     {
+      "wall": 0.4174381159245968,
+      "maxrss_kb": 221184,
+      "user": 0.237001,
+      "sys": 0.179001,
+      "minflt": 55197,
+      "phases_us": null
+     },
+     {
+      "wall": 0.4162566871382296,
+      "maxrss_kb": 221184,
+      "user": 0.234813,
+      "sys": 0.179857,
+      "minflt": 55199,
+      "phases_us": null
+     },
+     {
+      "wall": 0.41594026098027825,
+      "maxrss_kb": 221184,
+      "user": 0.23590799999999998,
+      "sys": 0.17893,
+      "minflt": 55200,
+      "phases_us": null
+     },
+     {
+      "wall": 0.41129442397505045,
+      "maxrss_kb": 221184,
+      "user": 0.241453,
+      "sys": 0.168618,
+      "minflt": 55198,
+      "phases_us": null
+     },
+     {
+      "wall": 0.42469344893470407,
+      "maxrss_kb": 221184,
+      "user": 0.27177,
+      "sys": 0.151871,
+      "minflt": 55200,
+      "phases_us": null
+     },
+     {
+      "wall": 0.4179798550903797,
+      "maxrss_kb": 221184,
+      "user": 0.25382,
+      "sys": 0.161885,
+      "minflt": 55197,
+      "phases_us": null
+     },
+     {
+      "wall": 0.42101462092250586,
+      "maxrss_kb": 221184,
+      "user": 0.253,
+      "sys": 0.16699999999999998,
+      "minflt": 55200,
+      "phases_us": null
+     },
+     {
+      "wall": 0.41575657995417714,
+      "maxrss_kb": 221184,
+      "user": 0.257838,
+      "sys": 0.15690099999999998,
+      "minflt": 55197,
+      "phases_us": null
+     },
+     {
+      "wall": 0.4086884153075516,
+      "maxrss_kb": 221184,
+      "user": 0.23838499999999999,
+      "sys": 0.16927299999999998,
+      "minflt": 55198,
+      "phases_us": null
+     },
+     {
+      "wall": 0.4140189648605883,
+      "maxrss_kb": 221184,
+      "user": 0.25604,
+      "sys": 0.157024,
+      "minflt": 55198,
+      "phases_us": null
+     },
+     {
+      "wall": 0.4228073316626251,
+      "maxrss_kb": 221184,
+      "user": 0.244829,
+      "sys": 0.176876,
+      "minflt": 55199,
+      "phases_us": null
+     },
+     {
+      "wall": 0.4140784819610417,
+      "maxrss_kb": 221184,
+      "user": 0.241971,
+      "sys": 0.170979,
+      "minflt": 55197,
+      "phases_us": null
+     },
+     {
+      "wall": 0.4075066512450576,
+      "maxrss_kb": 221184,
+      "user": 0.233209,
+      "sys": 0.173155,
+      "minflt": 55200,
+      "phases_us": null
+     },
+     {
+      "wall": 0.40816251281648874,
+      "maxrss_kb": 221184,
+      "user": 0.23797,
+      "sys": 0.168979,
+      "minflt": 55196,
+      "phases_us": null
+     },
+     {
+      "wall": 0.412910436745733,
+      "maxrss_kb": 221184,
+      "user": 0.25587699999999997,
+      "sys": 0.15592499999999998,
+      "minflt": 55198,
+      "phases_us": null
+     },
+     {
+      "wall": 0.4090014798566699,
+      "maxrss_kb": 221184,
+      "user": 0.252012,
+      "sys": 0.156007,
+      "minflt": 55198,
+      "phases_us": null
+     },
+     {
+      "wall": 0.41000932082533836,
+      "maxrss_kb": 221184,
+      "user": 0.25399,
+      "sys": 0.154994,
+      "minflt": 55200,
+      "phases_us": null
+     }
+    ],
+    "ordstack": [
+     {
+      "wall": 0.16888957004994154,
+      "maxrss_kb": 80640,
+      "user": 0.11555199999999999,
+      "sys": 0.052249,
+      "minflt": 20113,
+      "phases_us": null
+     },
+     {
+      "wall": 0.16866078414022923,
+      "maxrss_kb": 80640,
+      "user": 0.112728,
+      "sys": 0.054867,
+      "minflt": 20115,
+      "phases_us": null
+     },
+     {
+      "wall": 0.16844108793884516,
+      "maxrss_kb": 80640,
+      "user": 0.106587,
+      "sys": 0.060764,
+      "minflt": 20114,
+      "phases_us": null
+     },
+     {
+      "wall": 0.16539127472788095,
+      "maxrss_kb": 80640,
+      "user": 0.09168799999999999,
+      "sys": 0.072752,
+      "minflt": 20115,
+      "phases_us": null
+     },
+     {
+      "wall": 0.1688630129210651,
+      "maxrss_kb": 80640,
+      "user": 0.10488399999999999,
+      "sys": 0.06293,
+      "minflt": 20112,
+      "phases_us": null
+     },
+     {
+      "wall": 0.16816681483760476,
+      "maxrss_kb": 80640,
+      "user": 0.116091,
+      "sys": 0.051039999999999995,
+      "minflt": 20113,
+      "phases_us": null
+     },
+     {
+      "wall": 0.16860525822266936,
+      "maxrss_kb": 80640,
+      "user": 0.10270399999999999,
+      "sys": 0.064813,
+      "minflt": 20111,
+      "phases_us": null
+     },
+     {
+      "wall": 0.1695683947764337,
+      "maxrss_kb": 80640,
+      "user": 0.113302,
+      "sys": 0.055146999999999995,
+      "minflt": 20115,
+      "phases_us": null
+     },
+     {
+      "wall": 0.16861189994961023,
+      "maxrss_kb": 80640,
+      "user": 0.11566,
+      "sys": 0.051847,
+      "minflt": 20114,
+      "phases_us": null
+     },
+     {
+      "wall": 0.17164223408326507,
+      "maxrss_kb": 80640,
+      "user": 0.10976999999999999,
+      "sys": 0.060871999999999996,
+      "minflt": 20115,
+      "phases_us": null
+     },
+     {
+      "wall": 0.16893791174516082,
+      "maxrss_kb": 80640,
+      "user": 0.104929,
+      "sys": 0.062957,
+      "minflt": 20112,
+      "phases_us": null
+     },
+     {
+      "wall": 0.16528323059901595,
+      "maxrss_kb": 80640,
+      "user": 0.108497,
+      "sys": 0.055741,
+      "minflt": 20115,
+      "phases_us": null
+     },
+     {
+      "wall": 0.16537334490567446,
+      "maxrss_kb": 80640,
+      "user": 0.096633,
+      "sys": 0.067743,
+      "minflt": 20114,
+      "phases_us": null
+     },
+     {
+      "wall": 0.1687569092027843,
+      "maxrss_kb": 80640,
+      "user": 0.10475799999999999,
+      "sys": 0.062855,
+      "minflt": 20113,
+      "phases_us": null
+     },
+     {
+      "wall": 0.16787100490182638,
+      "maxrss_kb": 80640,
+      "user": 0.096359,
+      "sys": 0.07026199999999999,
+      "minflt": 20111,
+      "phases_us": null
+     },
+     {
+      "wall": 0.16728163976222277,
+      "maxrss_kb": 80640,
+      "user": 0.111065,
+      "sys": 0.055032,
+      "minflt": 20114,
+      "phases_us": null
+     },
+     {
+      "wall": 0.1677072229795158,
+      "maxrss_kb": 80640,
+      "user": 0.111787,
+      "sys": 0.054895,
+      "minflt": 20113,
+      "phases_us": null
+     },
+     {
+      "wall": 0.16798401298001409,
+      "maxrss_kb": 80640,
+      "user": 0.10400899999999999,
+      "sys": 0.06300499999999999,
+      "minflt": 20116,
+      "phases_us": null
+     },
+     {
+      "wall": 0.17193555273115635,
+      "maxrss_kb": 80640,
+      "user": 0.111803,
+      "sys": 0.058896,
+      "minflt": 20114,
+      "phases_us": null
+     },
+     {
+      "wall": 0.16850709915161133,
+      "maxrss_kb": 80640,
+      "user": 0.105698,
+      "sys": 0.061822999999999996,
+      "minflt": 20113,
+      "phases_us": null
+     },
+     {
+      "wall": 0.16579162422567606,
+      "maxrss_kb": 80640,
+      "user": 0.10278599999999999,
+      "sys": 0.061870999999999995,
+      "minflt": 20113,
+      "phases_us": null
+     },
+     {
+      "wall": 0.16685644490644336,
+      "maxrss_kb": 80640,
+      "user": 0.110886,
+      "sys": 0.054943,
+      "minflt": 20114,
+      "phases_us": null
+     },
+     {
+      "wall": 0.16858555423095822,
+      "maxrss_kb": 80640,
+      "user": 0.107763,
+      "sys": 0.059868,
+      "minflt": 20113,
+      "phases_us": null
+     },
+     {
+      "wall": 0.16737251123413444,
+      "maxrss_kb": 80640,
+      "user": 0.11327799999999999,
+      "sys": 0.05313,
+      "minflt": 20116,
+      "phases_us": null
+     },
+     {
+      "wall": 0.17032333463430405,
+      "maxrss_kb": 80640,
+      "user": 0.120207,
+      "sys": 0.049083999999999996,
+      "minflt": 20114,
+      "phases_us": null
+     }
+    ],
+    "bumpalo": [
+     {
+      "wall": 0.2679054131731391,
+      "maxrss_kb": 141312,
+      "user": 0.16580799999999998,
+      "sys": 0.100883,
+      "minflt": 35332,
+      "phases_us": null
+     },
+     {
+      "wall": 0.264812798704952,
+      "maxrss_kb": 141312,
+      "user": 0.167871,
+      "sys": 0.095926,
+      "minflt": 35332,
+      "phases_us": null
+     },
+     {
+      "wall": 0.2671961160376668,
+      "maxrss_kb": 141312,
+      "user": 0.165101,
+      "sys": 0.101061,
+      "minflt": 35330,
+      "phases_us": null
+     },
+     {
+      "wall": 0.26684631686657667,
+      "maxrss_kb": 141312,
+      "user": 0.164857,
+      "sys": 0.10091299999999999,
+      "minflt": 35332,
+      "phases_us": null
+     },
+     {
+      "wall": 0.2663784362375736,
+      "maxrss_kb": 141312,
+      "user": 0.16725199999999998,
+      "sys": 0.098148,
+      "minflt": 35333,
+      "phases_us": null
+     },
+     {
+      "wall": 0.2648264467716217,
+      "maxrss_kb": 141312,
+      "user": 0.16589199999999998,
+      "sys": 0.097936,
+      "minflt": 35330,
+      "phases_us": null
+     },
+     {
+      "wall": 0.2660509920679033,
+      "maxrss_kb": 141312,
+      "user": 0.17282,
+      "sys": 0.091904,
+      "minflt": 35331,
+      "phases_us": null
+     },
+     {
+      "wall": 0.2669222471304238,
+      "maxrss_kb": 141312,
+      "user": 0.148828,
+      "sys": 0.116865,
+      "minflt": 35332,
+      "phases_us": null
+     },
+     {
+      "wall": 0.26561783300712705,
+      "maxrss_kb": 141312,
+      "user": 0.172398,
+      "sys": 0.09221299999999999,
+      "minflt": 35333,
+      "phases_us": null
+     },
+     {
+      "wall": 0.2630642228759825,
+      "maxrss_kb": 141312,
+      "user": 0.15800699999999998,
+      "sys": 0.104004,
+      "minflt": 35333,
+      "phases_us": null
+     },
+     {
+      "wall": 0.26255279080942273,
+      "maxrss_kb": 141312,
+      "user": 0.17260799999999998,
+      "sys": 0.088798,
+      "minflt": 35332,
+      "phases_us": null
+     },
+     {
+      "wall": 0.25793223502114415,
+      "maxrss_kb": 141312,
+      "user": 0.15395999999999999,
+      "sys": 0.102973,
+      "minflt": 35331,
+      "phases_us": null
+     },
+     {
+      "wall": 0.26384863117709756,
+      "maxrss_kb": 141312,
+      "user": 0.166683,
+      "sys": 0.095818,
+      "minflt": 35333,
+      "phases_us": null
+     },
+     {
+      "wall": 0.27027957094833255,
+      "maxrss_kb": 141312,
+      "user": 0.162962,
+      "sys": 0.105975,
+      "minflt": 35331,
+      "phases_us": null
+     },
+     {
+      "wall": 0.2646129736676812,
+      "maxrss_kb": 141312,
+      "user": 0.161773,
+      "sys": 0.10185699999999999,
+      "minflt": 35333,
+      "phases_us": null
+     },
+     {
+      "wall": 0.26154196029528975,
+      "maxrss_kb": 141312,
+      "user": 0.152695,
+      "sys": 0.10778499999999999,
+      "minflt": 35332,
+      "phases_us": null
+     },
+     {
+      "wall": 0.26297207176685333,
+      "maxrss_kb": 141312,
+      "user": 0.167921,
+      "sys": 0.093955,
+      "minflt": 35333,
+      "phases_us": null
+     },
+     {
+      "wall": 0.26856729993596673,
+      "maxrss_kb": 141312,
+      "user": 0.164656,
+      "sys": 0.102785,
+      "minflt": 35333,
+      "phases_us": null
+     },
+     {
+      "wall": 0.267538043204695,
+      "maxrss_kb": 141312,
+      "user": 0.16533599999999998,
+      "sys": 0.10120499999999999,
+      "minflt": 35333,
+      "phases_us": null
+     },
+     {
+      "wall": 0.2630687700584531,
+      "maxrss_kb": 141312,
+      "user": 0.158055,
+      "sys": 0.10403599999999999,
+      "minflt": 35330,
+      "phases_us": null
+     },
+     {
+      "wall": 0.2643067347817123,
+      "maxrss_kb": 141312,
+      "user": 0.158628,
+      "sys": 0.104754,
+      "minflt": 35331,
+      "phases_us": null
+     },
+     {
+      "wall": 0.26571722608059645,
+      "maxrss_kb": 141312,
+      "user": 0.14627199999999999,
+      "sys": 0.11821999999999999,
+      "minflt": 35332,
+      "phases_us": null
+     },
+     {
+      "wall": 0.2651489321142435,
+      "maxrss_kb": 141312,
+      "user": 0.171005,
+      "sys": 0.093002,
+      "minflt": 35333,
+      "phases_us": null
+     },
+     {
+      "wall": 0.2658735760487616,
+      "maxrss_kb": 141312,
+      "user": 0.17343599999999998,
+      "sys": 0.09122899999999999,
+      "minflt": 35330,
+      "phases_us": null
+     },
+     {
+      "wall": 0.2641762993298471,
+      "maxrss_kb": 141312,
+      "user": 0.166717,
+      "sys": 0.096415,
+      "minflt": 35333,
+      "phases_us": null
+     }
+    ],
+    "bumpalo-frozen": [
+     {
+      "wall": 0.17343913624063134,
+      "maxrss_kb": 96000,
+      "user": 0.105653,
+      "sys": 0.06677999999999999,
+      "minflt": 23888,
+      "phases_us": null
+     },
+     {
+      "wall": 0.17073740204796195,
+      "maxrss_kb": 96000,
+      "user": 0.09776699999999999,
+      "sys": 0.071828,
+      "minflt": 23889,
+      "phases_us": null
+     },
+     {
+      "wall": 0.17054989794269204,
+      "maxrss_kb": 96000,
+      "user": 0.103711,
+      "sys": 0.065817,
+      "minflt": 23887,
+      "phases_us": null
+     },
+     {
+      "wall": 0.1720052775926888,
+      "maxrss_kb": 96000,
+      "user": 0.09891,
+      "sys": 0.071934,
+      "minflt": 23889,
+      "phases_us": null
+     },
+     {
+      "wall": 0.17431635316461325,
+      "maxrss_kb": 96000,
+      "user": 0.105611,
+      "sys": 0.06774999999999999,
+      "minflt": 23886,
+      "phases_us": null
+     },
+     {
+      "wall": 0.173008578363806,
+      "maxrss_kb": 96000,
+      "user": 0.100948,
+      "sys": 0.070963,
+      "minflt": 23889,
+      "phases_us": null
+     },
+     {
+      "wall": 0.16965758800506592,
+      "maxrss_kb": 96000,
+      "user": 0.093808,
+      "sys": 0.074847,
+      "minflt": 23888,
+      "phases_us": null
+     },
+     {
+      "wall": 0.17062717583030462,
+      "maxrss_kb": 96000,
+      "user": 0.099809,
+      "sys": 0.069866,
+      "minflt": 23890,
+      "phases_us": null
+     },
+     {
+      "wall": 0.17015180177986622,
+      "maxrss_kb": 96000,
+      "user": 0.10199699999999999,
+      "sys": 0.066998,
+      "minflt": 23890,
+      "phases_us": null
+     },
+     {
+      "wall": 0.17251641862094402,
+      "maxrss_kb": 96000,
+      "user": 0.10567599999999999,
+      "sys": 0.065798,
+      "minflt": 23890,
+      "phases_us": null
+     },
+     {
+      "wall": 0.17264941427856684,
+      "maxrss_kb": 96000,
+      "user": 0.102766,
+      "sys": 0.068843,
+      "minflt": 23889,
+      "phases_us": null
+     },
+     {
+      "wall": 0.1780249048024416,
+      "maxrss_kb": 96000,
+      "user": 0.10396899999999999,
+      "sys": 0.072978,
+      "minflt": 23892,
+      "phases_us": null
+     },
+     {
+      "wall": 0.16700171027332544,
+      "maxrss_kb": 96000,
+      "user": 0.095968,
+      "sys": 0.069977,
+      "minflt": 23890,
+      "phases_us": null
+     },
+     {
+      "wall": 0.17384448135271668,
+      "maxrss_kb": 96000,
+      "user": 0.100896,
+      "sys": 0.07192599999999999,
+      "minflt": 23888,
+      "phases_us": null
+     },
+     {
+      "wall": 0.17503634514287114,
+      "maxrss_kb": 96000,
+      "user": 0.10192,
+      "sys": 0.071943,
+      "minflt": 23889,
+      "phases_us": null
+     },
+     {
+      "wall": 0.16807336173951626,
+      "maxrss_kb": 96000,
+      "user": 0.09902,
+      "sys": 0.06801399999999999,
+      "minflt": 23889,
+      "phases_us": null
+     },
+     {
+      "wall": 0.17107054637745023,
+      "maxrss_kb": 96000,
+      "user": 0.10682399999999999,
+      "sys": 0.062896,
+      "minflt": 23889,
+      "phases_us": null
+     },
+     {
+      "wall": 0.16988604422658682,
+      "maxrss_kb": 96000,
+      "user": 0.105458,
+      "sys": 0.063274,
+      "minflt": 23888,
+      "phases_us": null
+     },
+     {
+      "wall": 0.17929192818701267,
+      "maxrss_kb": 96000,
+      "user": 0.110076,
+      "sys": 0.068047,
+      "minflt": 23889,
+      "phases_us": null
+     },
+     {
+      "wall": 0.1679987139068544,
+      "maxrss_kb": 96000,
+      "user": 0.09292199999999999,
+      "sys": 0.07393799999999999,
+      "minflt": 23890,
+      "phases_us": null
+     },
+     {
+      "wall": 0.17223742371425033,
+      "maxrss_kb": 96000,
+      "user": 0.104062,
+      "sys": 0.067039,
+      "minflt": 23888,
+      "phases_us": null
+     },
+     {
+      "wall": 0.16890517063438892,
+      "maxrss_kb": 96000,
+      "user": 0.099979,
+      "sys": 0.06798599999999999,
+      "minflt": 23890,
+      "phases_us": null
+     },
+     {
+      "wall": 0.1718117343261838,
+      "maxrss_kb": 96000,
+      "user": 0.094828,
+      "sys": 0.075863,
+      "minflt": 23889,
+      "phases_us": null
+     },
+     {
+      "wall": 0.17075079400092363,
+      "maxrss_kb": 96000,
+      "user": 0.09390899999999999,
+      "sys": 0.075926,
+      "minflt": 23889,
+      "phases_us": null
+     },
+     {
+      "wall": 0.17236465215682983,
+      "maxrss_kb": 96000,
+      "user": 0.115231,
+      "sys": 0.056111999999999995,
+      "minflt": 23890,
+      "phases_us": null
+     }
+    ]
+   },
+   "attempts": [
+    {
+     "program": "treebuild",
+     "args": [
+      "8"
+     ],
+     "core": 86,
+     "load": {
+      "loadavg_before": [
+       "32.93",
+       "19.27",
+       "11.72"
+      ],
+      "core_busy_before": {
+       "86": 1.7
+      },
+      "system_busy_before": 32.1,
+      "loadavg_after": [
+       "36.59",
+       "22.52",
+       "13.27"
+      ],
+      "siblings_busy_during": {},
+      "system_busy_during": 34.8
+     },
+     "max_rel_iqr": 0.022472263201592423
+    }
+   ],
+   "all_attempt_runs": [
+    {
+     "std": [
+      {
+       "wall": 0.48136237589642406,
+       "maxrss_kb": 243456,
+       "user": 0.295655,
+       "sys": 0.184784,
+       "minflt": 60920,
+       "phases_us": null
+      },
+      {
+       "wall": 0.4880840973928571,
+       "maxrss_kb": 243456,
+       "user": 0.310037,
+       "sys": 0.17702099999999998,
+       "minflt": 60919,
+       "phases_us": null
+      },
+      {
+       "wall": 0.4811392556875944,
+       "maxrss_kb": 243456,
+       "user": 0.30489099999999997,
+       "sys": 0.17493699999999998,
+       "minflt": 60919,
+       "phases_us": null
+      },
+      {
+       "wall": 0.4805086418054998,
+       "maxrss_kb": 243456,
+       "user": 0.319262,
+       "sys": 0.160131,
+       "minflt": 60919,
+       "phases_us": null
+      },
+      {
+       "wall": 0.480218016076833,
+       "maxrss_kb": 243456,
+       "user": 0.291049,
+       "sys": 0.188031,
+       "minflt": 60919,
+       "phases_us": null
+      },
+      {
+       "wall": 0.481330840382725,
+       "maxrss_kb": 243456,
+       "user": 0.313098,
+       "sys": 0.167052,
+       "minflt": 60919,
+       "phases_us": null
+      },
+      {
+       "wall": 0.47609838703647256,
+       "maxrss_kb": 243456,
+       "user": 0.295304,
+       "sys": 0.179577,
+       "minflt": 60919,
+       "phases_us": null
+      },
+      {
+       "wall": 0.48529296834021807,
+       "maxrss_kb": 243456,
+       "user": 0.305056,
+       "sys": 0.179033,
+       "minflt": 60921,
+       "phases_us": null
+      },
+      {
+       "wall": 0.4824931318871677,
+       "maxrss_kb": 243456,
+       "user": 0.290967,
+       "sys": 0.18997799999999998,
+       "minflt": 60923,
+       "phases_us": null
+      },
+      {
+       "wall": 0.48942626686766744,
+       "maxrss_kb": 243456,
+       "user": 0.30654,
+       "sys": 0.181727,
+       "minflt": 60921,
+       "phases_us": null
+      },
+      {
+       "wall": 0.48464836832135916,
+       "maxrss_kb": 243456,
+       "user": 0.30780799999999997,
+       "sys": 0.17589,
+       "minflt": 60922,
+       "phases_us": null
+      },
+      {
+       "wall": 0.4841563170775771,
+       "maxrss_kb": 243456,
+       "user": 0.292051,
+       "sys": 0.19103299999999998,
+       "minflt": 60922,
+       "phases_us": null
+      },
+      {
+       "wall": 0.48106976272538304,
+       "maxrss_kb": 243456,
+       "user": 0.30802199999999996,
+       "sys": 0.172012,
+       "minflt": 60922,
+       "phases_us": null
+      },
+      {
+       "wall": 0.4903294355608523,
+       "maxrss_kb": 243456,
+       "user": 0.30216699999999996,
+       "sys": 0.187103,
+       "minflt": 60920,
+       "phases_us": null
+      },
+      {
+       "wall": 0.48231193609535694,
+       "maxrss_kb": 243456,
+       "user": 0.275047,
+       "sys": 0.206035,
+       "minflt": 60921,
+       "phases_us": null
+      },
+      {
+       "wall": 0.48345268005505204,
+       "maxrss_kb": 243456,
+       "user": 0.302108,
+       "sys": 0.180064,
+       "minflt": 60919,
+       "phases_us": null
+      },
+      {
+       "wall": 0.48831845819950104,
+       "maxrss_kb": 243456,
+       "user": 0.31009,
+       "sys": 0.177051,
+       "minflt": 60921,
+       "phases_us": null
+      },
+      {
+       "wall": 0.4774588979780674,
+       "maxrss_kb": 243456,
+       "user": 0.304172,
+       "sys": 0.172097,
+       "minflt": 60921,
+       "phases_us": null
+      },
+      {
+       "wall": 0.4814229910261929,
+       "maxrss_kb": 243456,
+       "user": 0.302552,
+       "sys": 0.177736,
+       "minflt": 60922,
+       "phases_us": null
+      },
+      {
+       "wall": 0.47707369504496455,
+       "maxrss_kb": 243456,
+       "user": 0.30696799999999996,
+       "sys": 0.168982,
+       "minflt": 60920,
+       "phases_us": null
+      },
+      {
+       "wall": 0.4815068608149886,
+       "maxrss_kb": 243456,
+       "user": 0.300275,
+       "sys": 0.180165,
+       "minflt": 60921,
+       "phases_us": null
+      },
+      {
+       "wall": 0.48059897776693106,
+       "maxrss_kb": 243456,
+       "user": 0.312687,
+       "sys": 0.16683299999999998,
+       "minflt": 60922,
+       "phases_us": null
+      },
+      {
+       "wall": 0.4800897971726954,
+       "maxrss_kb": 243456,
+       "user": 0.307062,
+       "sys": 0.172035,
+       "minflt": 60922,
+       "phases_us": null
+      },
+      {
+       "wall": 0.47894792817533016,
+       "maxrss_kb": 243456,
+       "user": 0.306851,
+       "sys": 0.17091699999999999,
+       "minflt": 60921,
+       "phases_us": null
+      },
+      {
+       "wall": 0.481651715002954,
+       "maxrss_kb": 243456,
+       "user": 0.300744,
+       "sys": 0.17984699999999998,
+       "minflt": 60920,
+       "phases_us": null
+      }
+     ],
+     "std-mimalloc": [
+      {
+       "wall": 0.5725918030366302,
+       "maxrss_kb": 241348,
+       "user": 0.26261999999999996,
+       "sys": 0.308554,
+       "minflt": 426,
+       "phases_us": null
+      },
+      {
+       "wall": 0.5903129070065916,
+       "maxrss_kb": 241352,
+       "user": 0.285756,
+       "sys": 0.302742,
+       "minflt": 429,
+       "phases_us": null
+      },
+      {
+       "wall": 0.5806122948415577,
+       "maxrss_kb": 241348,
+       "user": 0.26861999999999997,
+       "sys": 0.310561,
+       "minflt": 425,
+       "phases_us": null
+      },
+      {
+       "wall": 0.5899011148139834,
+       "maxrss_kb": 241348,
+       "user": 0.279244,
+       "sys": 0.30927099999999996,
+       "minflt": 427,
+       "phases_us": null
+      },
+      {
+       "wall": 0.5767377130687237,
+       "maxrss_kb": 241348,
+       "user": 0.26776099999999997,
+       "sys": 0.307726,
+       "minflt": 427,
+       "phases_us": null
+      },
+      {
+       "wall": 0.5825100168585777,
+       "maxrss_kb": 241352,
+       "user": 0.270187,
+       "sys": 0.31121499999999996,
+       "minflt": 429,
+       "phases_us": null
+      },
+      {
+       "wall": 0.5943472990766168,
+       "maxrss_kb": 241348,
+       "user": 0.283623,
+       "sys": 0.309588,
+       "minflt": 427,
+       "phases_us": null
+      },
+      {
+       "wall": 0.5908475639298558,
+       "maxrss_kb": 241352,
+       "user": 0.279615,
+       "sys": 0.309573,
+       "minflt": 429,
+       "phases_us": null
+      },
+      {
+       "wall": 0.5834382250905037,
+       "maxrss_kb": 241348,
+       "user": 0.277395,
+       "sys": 0.304336,
+       "minflt": 428,
+       "phases_us": null
+      },
+      {
+       "wall": 0.5807483848184347,
+       "maxrss_kb": 241352,
+       "user": 0.270727,
+       "sys": 0.308689,
+       "minflt": 430,
+       "phases_us": null
+      },
+      {
+       "wall": 0.5318381590768695,
+       "maxrss_kb": 241352,
+       "user": 0.283197,
+       "sys": 0.24717199999999998,
+       "minflt": 432,
+       "phases_us": null
+      },
+      {
+       "wall": 0.5892950780689716,
+       "maxrss_kb": 241348,
+       "user": 0.281003,
+       "sys": 0.30700299999999997,
+       "minflt": 429,
+       "phases_us": null
+      },
+      {
+       "wall": 0.5995575059205294,
+       "maxrss_kb": 241352,
+       "user": 0.292158,
+       "sys": 0.306166,
+       "minflt": 428,
+       "phases_us": null
+      },
+      {
+       "wall": 0.5786745678633451,
+       "maxrss_kb": 241348,
+       "user": 0.27579899999999996,
+       "sys": 0.30178099999999997,
+       "minflt": 428,
+       "phases_us": null
+      },
+      {
+       "wall": 0.594014051835984,
+       "maxrss_kb": 241348,
+       "user": 0.28900899999999996,
+       "sys": 0.304009,
+       "minflt": 426,
+       "phases_us": null
+      },
+      {
+       "wall": 0.593016907107085,
+       "maxrss_kb": 241352,
+       "user": 0.281732,
+       "sys": 0.309706,
+       "minflt": 427,
+       "phases_us": null
+      },
+      {
+       "wall": 0.588014479726553,
+       "maxrss_kb": 241352,
+       "user": 0.282816,
+       "sys": 0.30380199999999996,
+       "minflt": 428,
+       "phases_us": null
+      },
+      {
+       "wall": 0.5805728766135871,
+       "maxrss_kb": 241348,
+       "user": 0.269933,
+       "sys": 0.308924,
+       "minflt": 429,
+       "phases_us": null
+      },
+      {
+       "wall": 0.5986775737255812,
+       "maxrss_kb": 241352,
+       "user": 0.291808,
+       "sys": 0.30479999999999996,
+       "minflt": 429,
+       "phases_us": null
+      },
+      {
+       "wall": 0.5999328321777284,
+       "maxrss_kb": 241356,
+       "user": 0.29387599999999997,
+       "sys": 0.304871,
+       "minflt": 430,
+       "phases_us": null
+      },
+      {
+       "wall": 0.5949594988487661,
+       "maxrss_kb": 241352,
+       "user": 0.28985,
+       "sys": 0.303843,
+       "minflt": 429,
+       "phases_us": null
+      },
+      {
+       "wall": 0.5931779332458973,
+       "maxrss_kb": 241352,
+       "user": 0.280014,
+       "sys": 0.31201599999999996,
+       "minflt": 431,
+       "phases_us": null
+      },
+      {
+       "wall": 0.5920923859812319,
+       "maxrss_kb": 241352,
+       "user": 0.282987,
+       "sys": 0.307986,
+       "minflt": 427,
+       "phases_us": null
+      },
+      {
+       "wall": 0.5918912631459534,
+       "maxrss_kb": 241348,
+       "user": 0.28293799999999997,
+       "sys": 0.307933,
+       "minflt": 429,
+       "phases_us": null
+      },
+      {
+       "wall": 0.597521954216063,
+       "maxrss_kb": 241348,
+       "user": 0.28304399999999996,
+       "sys": 0.31304899999999997,
+       "minflt": 428,
+       "phases_us": null
+      }
+     ],
+     "std-control": [
+      {
+       "wall": 0.4146092967130244,
+       "maxrss_kb": 221184,
+       "user": 0.250807,
+       "sys": 0.162874,
+       "minflt": 55199,
+       "phases_us": null
+      },
+      {
+       "wall": 0.4117211792618036,
+       "maxrss_kb": 221184,
+       "user": 0.25983,
+       "sys": 0.15090099999999998,
+       "minflt": 55195,
+       "phases_us": null
+      },
+      {
+       "wall": 0.41605011094361544,
+       "maxrss_kb": 221184,
+       "user": 0.245329,
+       "sys": 0.169536,
+       "minflt": 55197,
+       "phases_us": null
+      },
+      {
+       "wall": 0.41018473310396075,
+       "maxrss_kb": 221184,
+       "user": 0.241143,
+       "sys": 0.168099,
+       "minflt": 55196,
+       "phases_us": null
+      },
+      {
+       "wall": 0.41686993185430765,
+       "maxrss_kb": 221184,
+       "user": 0.266271,
+       "sys": 0.149151,
+       "minflt": 55197,
+       "phases_us": null
+      },
+      {
+       "wall": 0.4131946712732315,
+       "maxrss_kb": 221184,
+       "user": 0.248101,
+       "sys": 0.164067,
+       "minflt": 55197,
+       "phases_us": null
+      },
+      {
+       "wall": 0.41201091138646007,
+       "maxrss_kb": 221184,
+       "user": 0.253844,
+       "sys": 0.156903,
+       "minflt": 55197,
+       "phases_us": null
+      },
+      {
+       "wall": 0.4242417421191931,
+       "maxrss_kb": 221184,
+       "user": 0.25321099999999996,
+       "sys": 0.170142,
+       "minflt": 55199,
+       "phases_us": null
+      },
+      {
+       "wall": 0.4174381159245968,
+       "maxrss_kb": 221184,
+       "user": 0.237001,
+       "sys": 0.179001,
+       "minflt": 55197,
+       "phases_us": null
+      },
+      {
+       "wall": 0.4162566871382296,
+       "maxrss_kb": 221184,
+       "user": 0.234813,
+       "sys": 0.179857,
+       "minflt": 55199,
+       "phases_us": null
+      },
+      {
+       "wall": 0.41594026098027825,
+       "maxrss_kb": 221184,
+       "user": 0.23590799999999998,
+       "sys": 0.17893,
+       "minflt": 55200,
+       "phases_us": null
+      },
+      {
+       "wall": 0.41129442397505045,
+       "maxrss_kb": 221184,
+       "user": 0.241453,
+       "sys": 0.168618,
+       "minflt": 55198,
+       "phases_us": null
+      },
+      {
+       "wall": 0.42469344893470407,
+       "maxrss_kb": 221184,
+       "user": 0.27177,
+       "sys": 0.151871,
+       "minflt": 55200,
+       "phases_us": null
+      },
+      {
+       "wall": 0.4179798550903797,
+       "maxrss_kb": 221184,
+       "user": 0.25382,
+       "sys": 0.161885,
+       "minflt": 55197,
+       "phases_us": null
+      },
+      {
+       "wall": 0.42101462092250586,
+       "maxrss_kb": 221184,
+       "user": 0.253,
+       "sys": 0.16699999999999998,
+       "minflt": 55200,
+       "phases_us": null
+      },
+      {
+       "wall": 0.41575657995417714,
+       "maxrss_kb": 221184,
+       "user": 0.257838,
+       "sys": 0.15690099999999998,
+       "minflt": 55197,
+       "phases_us": null
+      },
+      {
+       "wall": 0.4086884153075516,
+       "maxrss_kb": 221184,
+       "user": 0.23838499999999999,
+       "sys": 0.16927299999999998,
+       "minflt": 55198,
+       "phases_us": null
+      },
+      {
+       "wall": 0.4140189648605883,
+       "maxrss_kb": 221184,
+       "user": 0.25604,
+       "sys": 0.157024,
+       "minflt": 55198,
+       "phases_us": null
+      },
+      {
+       "wall": 0.4228073316626251,
+       "maxrss_kb": 221184,
+       "user": 0.244829,
+       "sys": 0.176876,
+       "minflt": 55199,
+       "phases_us": null
+      },
+      {
+       "wall": 0.4140784819610417,
+       "maxrss_kb": 221184,
+       "user": 0.241971,
+       "sys": 0.170979,
+       "minflt": 55197,
+       "phases_us": null
+      },
+      {
+       "wall": 0.4075066512450576,
+       "maxrss_kb": 221184,
+       "user": 0.233209,
+       "sys": 0.173155,
+       "minflt": 55200,
+       "phases_us": null
+      },
+      {
+       "wall": 0.40816251281648874,
+       "maxrss_kb": 221184,
+       "user": 0.23797,
+       "sys": 0.168979,
+       "minflt": 55196,
+       "phases_us": null
+      },
+      {
+       "wall": 0.412910436745733,
+       "maxrss_kb": 221184,
+       "user": 0.25587699999999997,
+       "sys": 0.15592499999999998,
+       "minflt": 55198,
+       "phases_us": null
+      },
+      {
+       "wall": 0.4090014798566699,
+       "maxrss_kb": 221184,
+       "user": 0.252012,
+       "sys": 0.156007,
+       "minflt": 55198,
+       "phases_us": null
+      },
+      {
+       "wall": 0.41000932082533836,
+       "maxrss_kb": 221184,
+       "user": 0.25399,
+       "sys": 0.154994,
+       "minflt": 55200,
+       "phases_us": null
+      }
+     ],
+     "ordstack": [
+      {
+       "wall": 0.16888957004994154,
+       "maxrss_kb": 80640,
+       "user": 0.11555199999999999,
+       "sys": 0.052249,
+       "minflt": 20113,
+       "phases_us": null
+      },
+      {
+       "wall": 0.16866078414022923,
+       "maxrss_kb": 80640,
+       "user": 0.112728,
+       "sys": 0.054867,
+       "minflt": 20115,
+       "phases_us": null
+      },
+      {
+       "wall": 0.16844108793884516,
+       "maxrss_kb": 80640,
+       "user": 0.106587,
+       "sys": 0.060764,
+       "minflt": 20114,
+       "phases_us": null
+      },
+      {
+       "wall": 0.16539127472788095,
+       "maxrss_kb": 80640,
+       "user": 0.09168799999999999,
+       "sys": 0.072752,
+       "minflt": 20115,
+       "phases_us": null
+      },
+      {
+       "wall": 0.1688630129210651,
+       "maxrss_kb": 80640,
+       "user": 0.10488399999999999,
+       "sys": 0.06293,
+       "minflt": 20112,
+       "phases_us": null
+      },
+      {
+       "wall": 0.16816681483760476,
+       "maxrss_kb": 80640,
+       "user": 0.116091,
+       "sys": 0.051039999999999995,
+       "minflt": 20113,
+       "phases_us": null
+      },
+      {
+       "wall": 0.16860525822266936,
+       "maxrss_kb": 80640,
+       "user": 0.10270399999999999,
+       "sys": 0.064813,
+       "minflt": 20111,
+       "phases_us": null
+      },
+      {
+       "wall": 0.1695683947764337,
+       "maxrss_kb": 80640,
+       "user": 0.113302,
+       "sys": 0.055146999999999995,
+       "minflt": 20115,
+       "phases_us": null
+      },
+      {
+       "wall": 0.16861189994961023,
+       "maxrss_kb": 80640,
+       "user": 0.11566,
+       "sys": 0.051847,
+       "minflt": 20114,
+       "phases_us": null
+      },
+      {
+       "wall": 0.17164223408326507,
+       "maxrss_kb": 80640,
+       "user": 0.10976999999999999,
+       "sys": 0.060871999999999996,
+       "minflt": 20115,
+       "phases_us": null
+      },
+      {
+       "wall": 0.16893791174516082,
+       "maxrss_kb": 80640,
+       "user": 0.104929,
+       "sys": 0.062957,
+       "minflt": 20112,
+       "phases_us": null
+      },
+      {
+       "wall": 0.16528323059901595,
+       "maxrss_kb": 80640,
+       "user": 0.108497,
+       "sys": 0.055741,
+       "minflt": 20115,
+       "phases_us": null
+      },
+      {
+       "wall": 0.16537334490567446,
+       "maxrss_kb": 80640,
+       "user": 0.096633,
+       "sys": 0.067743,
+       "minflt": 20114,
+       "phases_us": null
+      },
+      {
+       "wall": 0.1687569092027843,
+       "maxrss_kb": 80640,
+       "user": 0.10475799999999999,
+       "sys": 0.062855,
+       "minflt": 20113,
+       "phases_us": null
+      },
+      {
+       "wall": 0.16787100490182638,
+       "maxrss_kb": 80640,
+       "user": 0.096359,
+       "sys": 0.07026199999999999,
+       "minflt": 20111,
+       "phases_us": null
+      },
+      {
+       "wall": 0.16728163976222277,
+       "maxrss_kb": 80640,
+       "user": 0.111065,
+       "sys": 0.055032,
+       "minflt": 20114,
+       "phases_us": null
+      },
+      {
+       "wall": 0.1677072229795158,
+       "maxrss_kb": 80640,
+       "user": 0.111787,
+       "sys": 0.054895,
+       "minflt": 20113,
+       "phases_us": null
+      },
+      {
+       "wall": 0.16798401298001409,
+       "maxrss_kb": 80640,
+       "user": 0.10400899999999999,
+       "sys": 0.06300499999999999,
+       "minflt": 20116,
+       "phases_us": null
+      },
+      {
+       "wall": 0.17193555273115635,
+       "maxrss_kb": 80640,
+       "user": 0.111803,
+       "sys": 0.058896,
+       "minflt": 20114,
+       "phases_us": null
+      },
+      {
+       "wall": 0.16850709915161133,
+       "maxrss_kb": 80640,
+       "user": 0.105698,
+       "sys": 0.061822999999999996,
+       "minflt": 20113,
+       "phases_us": null
+      },
+      {
+       "wall": 0.16579162422567606,
+       "maxrss_kb": 80640,
+       "user": 0.10278599999999999,
+       "sys": 0.061870999999999995,
+       "minflt": 20113,
+       "phases_us": null
+      },
+      {
+       "wall": 0.16685644490644336,
+       "maxrss_kb": 80640,
+       "user": 0.110886,
+       "sys": 0.054943,
+       "minflt": 20114,
+       "phases_us": null
+      },
+      {
+       "wall": 0.16858555423095822,
+       "maxrss_kb": 80640,
+       "user": 0.107763,
+       "sys": 0.059868,
+       "minflt": 20113,
+       "phases_us": null
+      },
+      {
+       "wall": 0.16737251123413444,
+       "maxrss_kb": 80640,
+       "user": 0.11327799999999999,
+       "sys": 0.05313,
+       "minflt": 20116,
+       "phases_us": null
+      },
+      {
+       "wall": 0.17032333463430405,
+       "maxrss_kb": 80640,
+       "user": 0.120207,
+       "sys": 0.049083999999999996,
+       "minflt": 20114,
+       "phases_us": null
+      }
+     ],
+     "bumpalo": [
+      {
+       "wall": 0.2679054131731391,
+       "maxrss_kb": 141312,
+       "user": 0.16580799999999998,
+       "sys": 0.100883,
+       "minflt": 35332,
+       "phases_us": null
+      },
+      {
+       "wall": 0.264812798704952,
+       "maxrss_kb": 141312,
+       "user": 0.167871,
+       "sys": 0.095926,
+       "minflt": 35332,
+       "phases_us": null
+      },
+      {
+       "wall": 0.2671961160376668,
+       "maxrss_kb": 141312,
+       "user": 0.165101,
+       "sys": 0.101061,
+       "minflt": 35330,
+       "phases_us": null
+      },
+      {
+       "wall": 0.26684631686657667,
+       "maxrss_kb": 141312,
+       "user": 0.164857,
+       "sys": 0.10091299999999999,
+       "minflt": 35332,
+       "phases_us": null
+      },
+      {
+       "wall": 0.2663784362375736,
+       "maxrss_kb": 141312,
+       "user": 0.16725199999999998,
+       "sys": 0.098148,
+       "minflt": 35333,
+       "phases_us": null
+      },
+      {
+       "wall": 0.2648264467716217,
+       "maxrss_kb": 141312,
+       "user": 0.16589199999999998,
+       "sys": 0.097936,
+       "minflt": 35330,
+       "phases_us": null
+      },
+      {
+       "wall": 0.2660509920679033,
+       "maxrss_kb": 141312,
+       "user": 0.17282,
+       "sys": 0.091904,
+       "minflt": 35331,
+       "phases_us": null
+      },
+      {
+       "wall": 0.2669222471304238,
+       "maxrss_kb": 141312,
+       "user": 0.148828,
+       "sys": 0.116865,
+       "minflt": 35332,
+       "phases_us": null
+      },
+      {
+       "wall": 0.26561783300712705,
+       "maxrss_kb": 141312,
+       "user": 0.172398,
+       "sys": 0.09221299999999999,
+       "minflt": 35333,
+       "phases_us": null
+      },
+      {
+       "wall": 0.2630642228759825,
+       "maxrss_kb": 141312,
+       "user": 0.15800699999999998,
+       "sys": 0.104004,
+       "minflt": 35333,
+       "phases_us": null
+      },
+      {
+       "wall": 0.26255279080942273,
+       "maxrss_kb": 141312,
+       "user": 0.17260799999999998,
+       "sys": 0.088798,
+       "minflt": 35332,
+       "phases_us": null
+      },
+      {
+       "wall": 0.25793223502114415,
+       "maxrss_kb": 141312,
+       "user": 0.15395999999999999,
+       "sys": 0.102973,
+       "minflt": 35331,
+       "phases_us": null
+      },
+      {
+       "wall": 0.26384863117709756,
+       "maxrss_kb": 141312,
+       "user": 0.166683,
+       "sys": 0.095818,
+       "minflt": 35333,
+       "phases_us": null
+      },
+      {
+       "wall": 0.27027957094833255,
+       "maxrss_kb": 141312,
+       "user": 0.162962,
+       "sys": 0.105975,
+       "minflt": 35331,
+       "phases_us": null
+      },
+      {
+       "wall": 0.2646129736676812,
+       "maxrss_kb": 141312,
+       "user": 0.161773,
+       "sys": 0.10185699999999999,
+       "minflt": 35333,
+       "phases_us": null
+      },
+      {
+       "wall": 0.26154196029528975,
+       "maxrss_kb": 141312,
+       "user": 0.152695,
+       "sys": 0.10778499999999999,
+       "minflt": 35332,
+       "phases_us": null
+      },
+      {
+       "wall": 0.26297207176685333,
+       "maxrss_kb": 141312,
+       "user": 0.167921,
+       "sys": 0.093955,
+       "minflt": 35333,
+       "phases_us": null
+      },
+      {
+       "wall": 0.26856729993596673,
+       "maxrss_kb": 141312,
+       "user": 0.164656,
+       "sys": 0.102785,
+       "minflt": 35333,
+       "phases_us": null
+      },
+      {
+       "wall": 0.267538043204695,
+       "maxrss_kb": 141312,
+       "user": 0.16533599999999998,
+       "sys": 0.10120499999999999,
+       "minflt": 35333,
+       "phases_us": null
+      },
+      {
+       "wall": 0.2630687700584531,
+       "maxrss_kb": 141312,
+       "user": 0.158055,
+       "sys": 0.10403599999999999,
+       "minflt": 35330,
+       "phases_us": null
+      },
+      {
+       "wall": 0.2643067347817123,
+       "maxrss_kb": 141312,
+       "user": 0.158628,
+       "sys": 0.104754,
+       "minflt": 35331,
+       "phases_us": null
+      },
+      {
+       "wall": 0.26571722608059645,
+       "maxrss_kb": 141312,
+       "user": 0.14627199999999999,
+       "sys": 0.11821999999999999,
+       "minflt": 35332,
+       "phases_us": null
+      },
+      {
+       "wall": 0.2651489321142435,
+       "maxrss_kb": 141312,
+       "user": 0.171005,
+       "sys": 0.093002,
+       "minflt": 35333,
+       "phases_us": null
+      },
+      {
+       "wall": 0.2658735760487616,
+       "maxrss_kb": 141312,
+       "user": 0.17343599999999998,
+       "sys": 0.09122899999999999,
+       "minflt": 35330,
+       "phases_us": null
+      },
+      {
+       "wall": 0.2641762993298471,
+       "maxrss_kb": 141312,
+       "user": 0.166717,
+       "sys": 0.096415,
+       "minflt": 35333,
+       "phases_us": null
+      }
+     ],
+     "bumpalo-frozen": [
+      {
+       "wall": 0.17343913624063134,
+       "maxrss_kb": 96000,
+       "user": 0.105653,
+       "sys": 0.06677999999999999,
+       "minflt": 23888,
+       "phases_us": null
+      },
+      {
+       "wall": 0.17073740204796195,
+       "maxrss_kb": 96000,
+       "user": 0.09776699999999999,
+       "sys": 0.071828,
+       "minflt": 23889,
+       "phases_us": null
+      },
+      {
+       "wall": 0.17054989794269204,
+       "maxrss_kb": 96000,
+       "user": 0.103711,
+       "sys": 0.065817,
+       "minflt": 23887,
+       "phases_us": null
+      },
+      {
+       "wall": 0.1720052775926888,
+       "maxrss_kb": 96000,
+       "user": 0.09891,
+       "sys": 0.071934,
+       "minflt": 23889,
+       "phases_us": null
+      },
+      {
+       "wall": 0.17431635316461325,
+       "maxrss_kb": 96000,
+       "user": 0.105611,
+       "sys": 0.06774999999999999,
+       "minflt": 23886,
+       "phases_us": null
+      },
+      {
+       "wall": 0.173008578363806,
+       "maxrss_kb": 96000,
+       "user": 0.100948,
+       "sys": 0.070963,
+       "minflt": 23889,
+       "phases_us": null
+      },
+      {
+       "wall": 0.16965758800506592,
+       "maxrss_kb": 96000,
+       "user": 0.093808,
+       "sys": 0.074847,
+       "minflt": 23888,
+       "phases_us": null
+      },
+      {
+       "wall": 0.17062717583030462,
+       "maxrss_kb": 96000,
+       "user": 0.099809,
+       "sys": 0.069866,
+       "minflt": 23890,
+       "phases_us": null
+      },
+      {
+       "wall": 0.17015180177986622,
+       "maxrss_kb": 96000,
+       "user": 0.10199699999999999,
+       "sys": 0.066998,
+       "minflt": 23890,
+       "phases_us": null
+      },
+      {
+       "wall": 0.17251641862094402,
+       "maxrss_kb": 96000,
+       "user": 0.10567599999999999,
+       "sys": 0.065798,
+       "minflt": 23890,
+       "phases_us": null
+      },
+      {
+       "wall": 0.17264941427856684,
+       "maxrss_kb": 96000,
+       "user": 0.102766,
+       "sys": 0.068843,
+       "minflt": 23889,
+       "phases_us": null
+      },
+      {
+       "wall": 0.1780249048024416,
+       "maxrss_kb": 96000,
+       "user": 0.10396899999999999,
+       "sys": 0.072978,
+       "minflt": 23892,
+       "phases_us": null
+      },
+      {
+       "wall": 0.16700171027332544,
+       "maxrss_kb": 96000,
+       "user": 0.095968,
+       "sys": 0.069977,
+       "minflt": 23890,
+       "phases_us": null
+      },
+      {
+       "wall": 0.17384448135271668,
+       "maxrss_kb": 96000,
+       "user": 0.100896,
+       "sys": 0.07192599999999999,
+       "minflt": 23888,
+       "phases_us": null
+      },
+      {
+       "wall": 0.17503634514287114,
+       "maxrss_kb": 96000,
+       "user": 0.10192,
+       "sys": 0.071943,
+       "minflt": 23889,
+       "phases_us": null
+      },
+      {
+       "wall": 0.16807336173951626,
+       "maxrss_kb": 96000,
+       "user": 0.09902,
+       "sys": 0.06801399999999999,
+       "minflt": 23889,
+       "phases_us": null
+      },
+      {
+       "wall": 0.17107054637745023,
+       "maxrss_kb": 96000,
+       "user": 0.10682399999999999,
+       "sys": 0.062896,
+       "minflt": 23889,
+       "phases_us": null
+      },
+      {
+       "wall": 0.16988604422658682,
+       "maxrss_kb": 96000,
+       "user": 0.105458,
+       "sys": 0.063274,
+       "minflt": 23888,
+       "phases_us": null
+      },
+      {
+       "wall": 0.17929192818701267,
+       "maxrss_kb": 96000,
+       "user": 0.110076,
+       "sys": 0.068047,
+       "minflt": 23889,
+       "phases_us": null
+      },
+      {
+       "wall": 0.1679987139068544,
+       "maxrss_kb": 96000,
+       "user": 0.09292199999999999,
+       "sys": 0.07393799999999999,
+       "minflt": 23890,
+       "phases_us": null
+      },
+      {
+       "wall": 0.17223742371425033,
+       "maxrss_kb": 96000,
+       "user": 0.104062,
+       "sys": 0.067039,
+       "minflt": 23888,
+       "phases_us": null
+      },
+      {
+       "wall": 0.16890517063438892,
+       "maxrss_kb": 96000,
+       "user": 0.099979,
+       "sys": 0.06798599999999999,
+       "minflt": 23890,
+       "phases_us": null
+      },
+      {
+       "wall": 0.1718117343261838,
+       "maxrss_kb": 96000,
+       "user": 0.094828,
+       "sys": 0.075863,
+       "minflt": 23889,
+       "phases_us": null
+      },
+      {
+       "wall": 0.17075079400092363,
+       "maxrss_kb": 96000,
+       "user": 0.09390899999999999,
+       "sys": 0.075926,
+       "minflt": 23889,
+       "phases_us": null
+      },
+      {
+       "wall": 0.17236465215682983,
+       "maxrss_kb": 96000,
+       "user": 0.115231,
+       "sys": 0.056111999999999995,
+       "minflt": 23890,
+       "phases_us": null
+      }
+     ]
+    }
+   ],
+   "perf": {
+    "std": [
+     {
+      "instructions:u": 1908159457,
+      "instructions": 2199506468,
+      "cycles": 1529127493
+     },
+     {
+      "instructions:u": 1908159297,
+      "instructions": 2196908200,
+      "cycles": 1499679684
+     },
+     {
+      "instructions:u": 1908159474,
+      "instructions": 2196692365,
+      "cycles": 1496712806
+     },
+     {
+      "instructions:u": 1908159045,
+      "instructions": 2196884056,
+      "cycles": 1478528182
+     },
+     {
+      "instructions:u": 1908159325,
+      "instructions": 2196705564,
+      "cycles": 1498962217
+     },
+     {
+      "instructions:u": 1908159647,
+      "instructions": 2196393463,
+      "cycles": 1512391718
+     },
+     {
+      "instructions:u": 1908159316,
+      "instructions": 2196575820,
+      "cycles": 1507661500
+     }
+    ],
+    "std-mimalloc": [
+     {
+      "instructions:u": 1415008471,
+      "instructions": 2530501305,
+      "cycles": 1892725980
+     },
+     {
+      "instructions:u": 1415009312,
+      "instructions": 2540802235,
+      "cycles": 1920746293
+     },
+     {
+      "instructions:u": 1415008256,
+      "instructions": 2529873264,
+      "cycles": 1892946911
+     },
+     {
+      "instructions:u": 1415008362,
+      "instructions": 2540988912,
+      "cycles": 1892445464
+     },
+     {
+      "instructions:u": 1415008490,
+      "instructions": 2529947666,
+      "cycles": 1882864024
+     },
+     {
+      "instructions:u": 1415008413,
+      "instructions": 2540924184,
+      "cycles": 1869813318
+     },
+     {
+      "instructions:u": 1415008020,
+      "instructions": 2530503633,
+      "cycles": 1871348311
+     }
+    ],
+    "std-control": [
+     {
+      "instructions:u": 1744456517,
+      "instructions": 2005155687,
+      "cycles": 1277457561
+     },
+     {
+      "instructions:u": 1744456094,
+      "instructions": 2005623347,
+      "cycles": 1296899619
+     },
+     {
+      "instructions:u": 1744455593,
+      "instructions": 2005191290,
+      "cycles": 1284039630
+     },
+     {
+      "instructions:u": 1744455879,
+      "instructions": 2005162640,
+      "cycles": 1272321658
+     },
+     {
+      "instructions:u": 1744456123,
+      "instructions": 2005140382,
+      "cycles": 1280850948
+     },
+     {
+      "instructions:u": 1744456179,
+      "instructions": 2005205186,
+      "cycles": 1289956029
+     },
+     {
+      "instructions:u": 1744455848,
+      "instructions": 2005216675,
+      "cycles": 1297251074
+     }
+    ],
+    "ordstack": [
+     {
+      "instructions:u": 837429607,
+      "instructions": 958835517,
+      "cycles": 549752837
+     },
+     {
+      "instructions:u": 837429534,
+      "instructions": 958831579,
+      "cycles": 542802965
+     },
+     {
+      "instructions:u": 837428837,
+      "instructions": 958745705,
+      "cycles": 548812581
+     },
+     {
+      "instructions:u": 837429662,
+      "instructions": 958820710,
+      "cycles": 543204261
+     },
+     {
+      "instructions:u": 837429811,
+      "instructions": 959712352,
+      "cycles": 550578271
+     },
+     {
+      "instructions:u": 837429471,
+      "instructions": 960480457,
+      "cycles": 545246605
+     },
+     {
+      "instructions:u": 837430001,
+      "instructions": 960471094,
+      "cycles": 545634816
+     }
+    ],
+    "bumpalo": [
+     {
+      "instructions:u": 848844224,
+      "instructions": 1063768373,
+      "cycles": 880968483
+     },
+     {
+      "instructions:u": 848844330,
+      "instructions": 1062279133,
+      "cycles": 871284802
+     },
+     {
+      "instructions:u": 848844396,
+      "instructions": 1062242863,
+      "cycles": 869734207
+     },
+     {
+      "instructions:u": 848844102,
+      "instructions": 1063627786,
+      "cycles": 879472744
+     },
+     {
+      "instructions:u": 848844849,
+      "instructions": 1063702722,
+      "cycles": 871939386
+     },
+     {
+      "instructions:u": 848844763,
+      "instructions": 1062284066,
+      "cycles": 869367025
+     },
+     {
+      "instructions:u": 848844875,
+      "instructions": 1062244426,
+      "cycles": 866989163
+     }
+    ],
+    "bumpalo-frozen": [
+     {
+      "instructions:u": 759477792,
+      "instructions": 903812214,
+      "cycles": 562732532
+     },
+     {
+      "instructions:u": 759477148,
+      "instructions": 905080062,
+      "cycles": 561314353
+     },
+     {
+      "instructions:u": 759477444,
+      "instructions": 903798937,
+      "cycles": 553650694
+     },
+     {
+      "instructions:u": 759477366,
+      "instructions": 903777728,
+      "cycles": 546843168
+     },
+     {
+      "instructions:u": 759477684,
+      "instructions": 903792198,
+      "cycles": 555223075
+     },
+     {
+      "instructions:u": 759478059,
+      "instructions": 903812934,
+      "cycles": 564318027
+     },
+     {
+      "instructions:u": 759477666,
+      "instructions": 903773420,
+      "cycles": 549365345
+     }
+    ]
+   },
+   "perf_core": 83,
+   "rss_time_kb": {
+    "std": [
+     243456,
+     243456,
+     243456,
+     243456,
+     243456
+    ],
+    "std-mimalloc": [
+     241352,
+     241348,
+     241348,
+     241356,
+     241348
+    ],
+    "std-control": [
+     221184,
+     221184,
+     221184,
+     221184,
+     221184
+    ],
+    "ordstack": [
+     80640,
+     80640,
+     80640,
+     80640,
+     80640
+    ],
+    "bumpalo": [
+     141312,
+     141312,
+     141312,
+     141312,
+     141312
+    ],
+    "bumpalo-frozen": [
+     96000,
+     96000,
+     96000,
+     96000,
+     96000
+    ]
+   }
+  }
+ },
+ "perf_events": "instructions:u,instructions,cycles",
+ "stats": {
+  "treebuild-d7/ordstack": [
+   "stack tree high_water=15592336 extent=15592336",
+   "stack scratch high_water=256 extent=64"
+  ],
+  "treebuild-d7/bumpalo": [
+   "bump allocated_bytes=33552896"
+  ],
+  "treebuild-d7/bumpalo-frozen": [
+   "bump allocated_bytes=33552896"
+  ],
+  "treebuild-d8/ordstack": [
+   "stack tree high_water=81217336 extent=81217336",
+   "stack scratch high_water=288 extent=64"
+  ],
+  "treebuild-d8/bumpalo": [
+   "bump allocated_bytes=268433728"
+  ],
+  "treebuild-d8/bumpalo-frozen": [
+   "bump allocated_bytes=134216064"
+  ]
+ }
+}

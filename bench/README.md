@@ -11,6 +11,7 @@ variants, timed against each other. Results and their reading:
 | `std-control` | the original plus only the non-allocator source changes the ports made (see each file's header); a control, not part of the reading |
 | `ordstack` | the port onto ordstack 0.1 (`src/bin/ordstack.rs`) |
 | `bumpalo` | the port onto bumpalo 3 (`src/bin/bumpalo.rs`) |
+| `bumpalo-frozen` | the bumpalo port with the ordstack port's node layout, frozen handles (`treebuild/src/bin/bumpalo_frozen.rs`; for serde, the same source as `bumpalo`, which already has it) |
 
 Workloads: `treebuild` (a 5-ary tree of named nodes with a tag map each;
 depth 7 = 97,656 nodes, depth 8 = 488,281) and `serde_json_xform` (parse an
@@ -47,7 +48,7 @@ set with `sched_setaffinity` in the child, as `taskset -c` does). A case
 whose worst wall-time IQR exceeds 4% of the median is re-run (at most twice).
 Load is recorded before and during each case. It
 records wall time, `ru_maxrss`, user/sys time and minor faults per run, then
-`perf stat -e instructions,cycles` (`PERF_RUNS`, default 7, rotated; skipped if perf
+`perf stat -e instructions:u,instructions,cycles` (`PERF_RUNS`, default 7, rotated; skipped if perf
 is unavailable), then one run of each port with `ORDSTACK_STATS=1` for
 arena statistics. `rss.py` then measures peak RSS under `/usr/bin/time -f %M`
 (5 rotated runs; the harness's own wait4 figure is floored at its ~20 MB),
