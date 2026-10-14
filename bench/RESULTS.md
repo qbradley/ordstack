@@ -389,8 +389,8 @@ Both runs: `RUNS=15 PERF_RUNS=3`. The `#[inline]` attributes went on
 |---|---|---|---|---|---|
 | treebuild-d7 | 0.363 | 0.376 (+3.6%) | 167.5 | 170.0 (+1.5%) | 144 / 152 |
 | treebuild-d8 | 0.359 | 0.365 (+1.7%) | 837.4 | 849.7 (+1.5%) | 144 / 152 |
-| xform-120k | 0.629 | 0.690 (+9.7%) | 120.9 | 115.7 (−4.3%) | 144 / 152 |
-| xform-480k | 0.679 | 0.673 (−0.9%) | 482.1 | 465.1 (−3.5%) | 144 / 152 |
+| xform-120k | 0.629 | 0.690 (+9.7%) | 1313.0 | 1306.9 (−0.5%) | 144 / 152 |
+| xform-480k | 0.679 | 0.673 (−0.9%) | 5276.0 | 5251.5 (−0.5%) | 144 / 152 |
 
 Load is the 1-minute load average at the start of each run, on 96 cores
 shared with other jobs. Every case except treebuild-d7 (after) exceeded
@@ -398,7 +398,9 @@ the harness's 4% wall-IQR noise bar on all three attempts; the reported
 attempts' worst IQRs were 5.9 / 22.0 / 37.3 / 23.5% before and 3.6 / 15.4
 / 27.2 / 9.7% after. The wall-time differences are therefore within
 noise. Instructions rose by about 1.5% on the tree-building cases and fell
-by about 4% on the serde cases.
+by about 0.5% on the serde cases. (An earlier version of this table gave
+the serde cases' parse-phase medians in ms, 120.9 / 482.1 before and
+115.7 / 465.1 after, in place of their instruction counts.)
 
 Decision: reverted. treebuild-d7 and xform-120k broke the wall-time rule,
 and the instruction counts, the noise-robust measure, show no consistent
