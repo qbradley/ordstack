@@ -5,12 +5,12 @@ Runs per (variant, input): 31 timed after 3 warm-up rounds, every run of a case 
 - attempt 1: CPU 9; worst wall IQR 4.2% of median; loadavg 11.43/16.08/28.06 → 10.91/15.81/27.84; chosen core busy before {'9': 0.0}; SMT sibling busy during {}; machine busy before 7.2% / during 8.1%
 - attempt 2: CPU 9; worst wall IQR 2.1% of median; loadavg 10.59/15.67/27.73 → 10.24/15.43/27.52; chosen core busy before {'9': 0.0}; SMT sibling busy during {}; machine busy before 6.8% / during 6.4% **(reported)**
 
-| variant | wall median ms | wall IQR ms | wall min–max ms | vs std | user+sys median ms | peak RSS median MB | RSS min–max MB | vs std | minor faults |
+| variant | wall median ms | wall IQR ms | wall min–max ms | vs std | user+sys median ms | peak RSS median MB (`/usr/bin/time %M`, 5 runs) | RSS min–max MB | vs std | minor faults |
 |---|---|---|---|---|---|---|---|---|---|
 | std | 95.8 | 95.4–96.2 | 94.3–97.6 | +0.0% | 94.6 | 47.2 | 47.2–47.2 | +0.0% | 12095 |
 | std-mimalloc | 56.1 | 55.9–57.1 | 55.4–58.5 | -41.4% | 55.0 | 51.7 | 51.7–51.7 | +9.4% | 333 |
 | std-control | 83.9 | 83.4–84.6 | 82.2–86.8 | -12.4% | 82.7 | 42.8 | 42.8–42.8 | -9.5% | 10951 |
-| ordstack | 33.6 | 33.3–34.0 | 32.5–34.3 | -64.9% | 32.6 | 22.3 | 22.2–22.3 | -52.9% | 4095 |
+| ordstack | 33.6 | 33.3–34.0 | 32.5–34.3 | -64.9% | 32.6 | 16.5 | 15.8–16.5 | -65.1% | 4095 |
 | bumpalo | 53.3 | 53.1–53.7 | 52.8–54.2 | -44.3% | 52.3 | 27.8 | 27.8–27.8 | -41.3% | 7106 |
 
 perf stat (`instructions:u,instructions,cycles`, 7 rotated runs per variant on CPU 4; median, min–max):
@@ -27,7 +27,7 @@ perf stat (`instructions:u,instructions,cycles`, 7 rotated runs per variant on C
 
 - attempt 1: CPU 3; worst wall IQR 1.4% of median; loadavg 9.74/15.24/27.40 → 6.83/13.60/26.20; chosen core busy before {'3': 0.0}; SMT sibling busy during {}; machine busy before 3.7% / during 4.8% **(reported)**
 
-| variant | wall median ms | wall IQR ms | wall min–max ms | vs std | user+sys median ms | peak RSS median MB | RSS min–max MB | vs std | minor faults |
+| variant | wall median ms | wall IQR ms | wall min–max ms | vs std | user+sys median ms | peak RSS median MB (`/usr/bin/time %M`, 5 runs) | RSS min–max MB | vs std | minor faults |
 |---|---|---|---|---|---|---|---|---|---|
 | std | 468.0 | 466.3–470.0 | 462.9–475.0 | +0.0% | 466.7 | 237.8 | 237.8–237.8 | +0.0% | 60922 |
 | std-mimalloc | 267.9 | 267.3–268.3 | 260.0–276.9 | -42.8% | 266.8 | 235.7 | 235.7–235.7 | -0.9% | 430 |
@@ -49,7 +49,7 @@ perf stat (`instructions:u,instructions,cycles`, 7 rotated runs per variant on C
 
 - attempt 1: CPU 1; worst wall IQR 1.5% of median; loadavg 6.53/13.42/26.08 → 5.63/12.32/25.17; chosen core busy before {'1': 0.0}; SMT sibling busy during {}; machine busy before 3.9% / during 4.8% **(reported)**
 
-| variant | wall median ms | wall IQR ms | wall min–max ms | vs std | user+sys median ms | peak RSS median MB | RSS min–max MB | vs std | minor faults |
+| variant | wall median ms | wall IQR ms | wall min–max ms | vs std | user+sys median ms | peak RSS median MB (`/usr/bin/time %M`, 5 runs) | RSS min–max MB | vs std | minor faults |
 |---|---|---|---|---|---|---|---|---|---|
 | std | 293.6 | 292.2–296.6 | 287.6–301.3 | +0.0% | 292.4 | 57.8 | 57.8–57.8 | +0.0% | 14792 |
 | std-mimalloc | 193.9 | 193.1–195.9 | 191.5–198.6 | -34.0% | 192.8 | 55.7 | 55.7–55.7 | -3.6% | 339 |
@@ -81,7 +81,7 @@ perf stat (`instructions:u,instructions,cycles`, 7 rotated runs per variant on C
 
 - attempt 1: CPU 2; worst wall IQR 0.9% of median; loadavg 5.58/12.20/25.06 → 5.05/9.18/21.87; chosen core busy before {'2': 0.0}; SMT sibling busy during {}; machine busy before 3.7% / during 5.1% **(reported)**
 
-| variant | wall median ms | wall IQR ms | wall min–max ms | vs std | user+sys median ms | peak RSS median MB | RSS min–max MB | vs std | minor faults |
+| variant | wall median ms | wall IQR ms | wall min–max ms | vs std | user+sys median ms | peak RSS median MB (`/usr/bin/time %M`, 5 runs) | RSS min–max MB | vs std | minor faults |
 |---|---|---|---|---|---|---|---|---|---|
 | std | 1164.6 | 1162.1–1170.3 | 1152.9–1174.9 | +0.0% | 1162.2 | 226.5 | 226.5–226.5 | +0.0% | 58019 |
 | std-mimalloc | 763.7 | 759.1–766.0 | 754.4–769.5 | -34.4% | 762.0 | 193.7 | 193.7–193.7 | -14.5% | 412 |
@@ -113,7 +113,7 @@ perf stat (`instructions:u,instructions,cycles`, 7 rotated runs per variant on C
 
 | input | ordstack time vs std | IQRs disjoint | time ≥10% better | ordstack RSS vs std | RSS ≥10% better | time vs bumpalo | RSS vs bumpalo | instructions:u vs std / bumpalo | cycles vs std / bumpalo |
 |---|---|---|---|---|---|---|---|---|---|
-| treebuild-d7 | -64.9% | yes | yes | -52.9% | yes | -37.0% | -19.8% | -56.0% / -1.3% | -65.8% / -41.6% |
+| treebuild-d7 | -64.9% | yes | yes | -65.1% | yes | -37.0% | -40.5% | -56.0% / -1.3% | -65.8% / -41.6% |
 | treebuild-d8 | -64.8% | yes | yes | -66.9% | yes | -36.2% | -42.9% | -56.1% / -1.3% | -62.7% / -36.0% |
 | xform-120k | -30.4% | yes | yes | -41.6% | yes | -3.6% | -33.8% | -19.6% / +2.1% | -29.2% / -3.2% |
 | xform-480k | -31.0% | yes | yes | -43.4% | yes | -3.5% | -35.2% | -16.6% / +2.1% | -30.4% / -4.0% |
