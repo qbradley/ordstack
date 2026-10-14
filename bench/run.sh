@@ -18,6 +18,7 @@ ENVF=work/env-$PROFILE.txt
 load_snapshot() {
   echo "## load ($1): $(date -u +%FT%TZ)"
   uptime
+  free -m | sed -n 1,2p
   if command -v mpstat >/dev/null; then
     # per-CPU busy % (100 - %idle) over 3 s, compact: cpu:busy
     mpstat -P ALL 1 3 | awk '/^Average/ && $2 ~ /^[0-9]+$/ {printf "%s:%.0f ", $2, 100-$NF} END {print ""}'
@@ -37,6 +38,8 @@ load_snapshot() {
   echo "## python"; python3 -V
   echo "## perf"; perf --version 2>/dev/null || echo "no perf"
   echo "## perf_event_paranoid"; cat /proc/sys/kernel/perf_event_paranoid 2>/dev/null || echo n/a
+  echo "## thp"; cat /sys/kernel/mm/transparent_hugepage/enabled /sys/kernel/mm/transparent_hugepage/defrag 2>/dev/null || echo n/a
+  echo "## smt"; cat /sys/devices/system/cpu/smt/active 2>/dev/null || echo n/a
 } > "$ENVF" 2>&1
 
 [ -f work/big.json ] || python3 -I gen_json.py 120000 work/big.json

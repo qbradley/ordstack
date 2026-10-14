@@ -102,7 +102,10 @@ def verify(bindir, cs, outdir, tmp):
 def perf_ok():
     if shutil.which("perf") is None:
         return None
-    for ev in ("instructions,cycles", "instructions:u,cycles:u"):
+    # instructions:u (user mode only) is the most deterministic count; the
+    # unqualified events also count kernel work (page faults, munmap) done on
+    # the program's behalf.
+    for ev in ("instructions:u,instructions,cycles", "instructions:u,cycles:u"):
         r = subprocess.run(["perf", "stat", "-x,", "-e", ev, "true"],
                            capture_output=True, text=True)
         if r.returncode == 0 and "<not supported>" not in r.stderr and "<not counted>" not in r.stderr:
@@ -118,7 +121,7 @@ def perf_run(cmd, ev, core, tmp, env):
     for line in open(path):
         parts = line.strip().split(",")
         if len(parts) > 2 and parts[0].replace(".", "").isdigit():
-            res[parts[2].split(":")[0]] = int(float(parts[0]))
+            res[parts[2]] = int(float(parts[0]))
     os.unlink(path)
     return res
 

@@ -76,19 +76,20 @@ def main():
             print("perf stat (`%s`, %d rotated runs per variant on CPU %s; median, "
                   "min–max):" % (r["perf_events"], len(c["perf"]["std"]), c.get("perf_core")))
             print()
-            print("| variant | instructions (M) | min–max | vs std | cycles (M) | min–max | "
-                  "vs std | IPC |")
-            print("|---|---|---|---|---|---|---|---|")
-            ins0 = statistics.median([p["instructions"] for p in c["perf"]["std"]])
-            cyc0 = statistics.median([p["cycles"] for p in c["perf"]["std"]])
+            keys = [k for k in ("instructions:u", "instructions", "cycles", "cycles:u")
+                    if k in c["perf"]["std"][0]]
+            print("| variant | " + " | ".join("%s (M) | min–max | vs std" % k for k in keys) + " |")
+            print("|---|" + "---|---|---|" * len(keys))
+            base = {k: statistics.median([p[k] for p in c["perf"]["std"]]) for k in keys}
             for v in vs:
-                il = [p["instructions"] for p in c["perf"][v]]
-                cl = [p["cycles"] for p in c["perf"][v]]
-                ins, cyc = statistics.median(il), statistics.median(cl)
-                s[v]["ins"], s[v]["cyc"] = ins, cyc
-                print("| %s | %.1f | %.1f–%.1f | %+.1f%% | %.1f | %.1f–%.1f | %+.1f%% | %.2f |" % (
-                    v, ins / 1e6, min(il) / 1e6, max(il) / 1e6, 100 * (ins / ins0 - 1),
-                    cyc / 1e6, min(cl) / 1e6, max(cl) / 1e6, 100 * (cyc / cyc0 - 1), ins / cyc))
+                cells = []
+                for k in keys:
+                    xs = [p[k] for p in c["perf"][v]]
+                    m = statistics.median(xs)
+                    s[v][k] = m
+                    cells.append("%.1f | %.1f–%.1f | %+.1f%%" % (
+                        m / 1e6, min(xs) / 1e6, max(xs) / 1e6, 100 * (m / base[k] - 1)))
+                print("| %s | %s |" % (v, " | ".join(cells)))
             print()
         summ[name] = s
 
@@ -96,7 +97,7 @@ def main():
     print()
     print("| input | ordstack time vs std | IQRs disjoint | time ≥10% better | "
           "ordstack RSS vs std | RSS ≥10% better | time vs bumpalo | RSS vs bumpalo | "
-          "instructions vs std / bumpalo | cycles vs std / bumpalo |")
+          "instructions:u vs std / bumpalo | cycles vs std / bumpalo |")
     print("|---|---|---|---|---|---|---|---|---|---|")
     useful = {}
     for name, s in summ.items():
@@ -108,10 +109,12 @@ def main():
         rb = dr <= -0.10
         bt = o["wall"][1] / b["wall"][1] - 1
         br = o["rss"][1] / b["rss"][1] - 1
-        if "ins" in o:
+        ck = "cycles" if "cycles" in o else "cycles:u"
+        if "instructions:u" in o and ck in o:
             pc = "%+.1f%% / %+.1f%% | %+.1f%% / %+.1f%%" % (
-                100 * (o["ins"] / st["ins"] - 1), 100 * (o["ins"] / b["ins"] - 1),
-                100 * (o["cyc"] / st["cyc"] - 1), 100 * (o["cyc"] / b["cyc"] - 1))
+                100 * (o["instructions:u"] / st["instructions:u"] - 1),
+                100 * (o["instructions:u"] / b["instructions:u"] - 1),
+                100 * (o[ck] / st[ck] - 1), 100 * (o[ck] / b[ck] - 1))
         else:
             pc = "n/a | n/a"
         print("| %s | %+.1f%% | %s | %s | %+.1f%% | %s | %+.1f%% | %+.1f%% | %s |" % (
