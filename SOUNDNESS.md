@@ -508,6 +508,7 @@ crates/ordstack/src/*.rs`), then the trait impls. "Resets" means
 | `SString::split_above` | `&mut SString` | `SVec::split_above`; `&mut str` keeps the bytes UTF-8 |
 | `SString::freeze` | `SString` by value | `SVec::freeze` |
 | `SString::freeze_into` | `SString` by value, `&mut Frame<'g>` | `SVec::freeze_into` |
+| `sformat!` (macro) | `&mut Frame<'f>` | `SString::new_in`, `fmt::Write::write_fmt`, `SString::freeze`; no code of its own touches the stack |
 
 ### `AllocError`
 

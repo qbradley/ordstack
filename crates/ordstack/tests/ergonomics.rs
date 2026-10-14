@@ -1,7 +1,7 @@
 //! The 0.2a additions: `Frame::stack`, `Frame::alloc_slice_from_iter`,
 //! `sformat!`, and `IntoIterator`.
 
-use ordstack::{SVec, Stack};
+use ordstack::{SVec, Stack, sformat};
 use std::cell::RefCell;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::rc::Rc;
@@ -101,4 +101,53 @@ fn alloc_slice_from_iter_drops_what_it_collected_on_panic() {
     assert_eq!(*l.borrow(), [1, 0]);
     let b = f.alloc(5u32); // the frame is usable
     assert_eq!(*b, 5);
+}
+
+#[test]
+fn sformat_formats_into_a_frozen_string() {
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let a = sformat!(&mut f, "{}-{}", 1, "x");
+    let b = sformat!(&mut f, "{a}!");
+    assert_eq!(a.as_str(), "1-x");
+    assert_eq!(b.as_str(), "1-x!");
+    assert_eq!(f.end_offset(), 7);
+}
+
+struct Fails;
+impl std::fmt::Display for Fails {
+    fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Err(std::fmt::Error)
+    }
+}
+
+#[test]
+#[should_panic(expected = "ordstack: a formatting trait implementation returned an error")]
+fn sformat_panics_when_display_fails() {
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let _ = sformat!(&mut f, "{}", Fails);
+}
+
+struct Panics;
+impl std::fmt::Display for Panics {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("partial")?;
+        panic!("display panicked");
+    }
+}
+
+#[test]
+fn sformat_leaves_the_frame_usable_after_a_panicking_display() {
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let kept = f.alloc(1u64);
+    let r = catch_unwind(AssertUnwindSafe(|| {
+        let _ = sformat!(&mut f, "{}", Panics);
+    }));
+    assert!(r.is_err());
+    let s = sformat!(&mut f, "ok");
+    assert_eq!(s.as_str(), "ok");
+    assert_eq!(*kept, 1);
+    assert_eq!(f.end_offset(), 10); // the partial string's space was reused
 }

@@ -70,7 +70,8 @@
 //! owning handles to blocks that never move or grow. They are branded with
 //! the frame's lifetime, so several can sit side by side and outlive the
 //! `&mut` borrow that allocated them. [`SVec::freeze`] turns a growable
-//! vector into a frozen slice without copying.
+//! vector into a frozen slice without copying. [`sformat!`] formats into an
+//! [`SStr`] the way `format!` formats into a `String`.
 //!
 //! ```
 //! use ordstack::{SString, Stack};
