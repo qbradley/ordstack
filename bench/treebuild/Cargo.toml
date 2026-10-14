@@ -22,6 +22,11 @@ path = "src/bin/ordstack.rs"
 name = "treebuild-bumpalo"
 path = "src/bin/bumpalo.rs"
 
+# The bumpalo port with the ordstack port's node layout (frozen handles).
+[[bin]]
+name = "treebuild-bumpalo-frozen"
+path = "src/bin/bumpalo_frozen.rs"
+
 [dependencies]
 ordstack = { path = "../../crates/ordstack" }
 bumpalo = { version = "3", features = ["collections", "boxed"] }

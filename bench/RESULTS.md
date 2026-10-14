@@ -18,7 +18,8 @@ Also fixed before any run:
   two measures meets the bar at both input sizes.
 
 Added after the owner's note on train-box load, before the runs reported
-below (a first full run had already been taken; see "Preliminary run"):
+below (a first full run had already been taken; see the preliminary row
+in "Load and re-runs"):
 
 - Before each case the harness samples `/proc/stat` for 3 s and pins the
   case to the CPU whose physical core (CPU and SMT sibling) was least busy,
@@ -36,10 +37,11 @@ below (a first full run had already been taken; see "Preliminary run"):
 
 ## Reading
 
-**ordstack is *useful on this evidence*, and better than *competitive*
-with bumpalo.** On both workloads and at both input sizes the ordstack
-port beats `std` by far more than 10% in median wall time (IQRs disjoint)
-and in peak RSS:
+**ordstack is *useful on this evidence*, and *competitive* with bumpalo:
+within 5% of it in wall time and 16–35% below it in peak RSS when both
+ports use the same data layout.** On both workloads and at both input
+sizes the ordstack port beats `std` by far more than 10% in median wall
+time (IQRs disjoint) and in peak RSS:
 
 | input | ordstack wall vs std | ordstack RSS vs std | ordstack wall vs bumpalo | ordstack RSS vs bumpalo | instructions:u vs std | cycles vs std |
 |---|---|---|---|---|---|---|
@@ -48,23 +50,37 @@ and in peak RSS:
 | serde_json_xform 120k | −30.4% | −41.6% | −3.6% | −33.8% | −19.6% | −29.2% |
 | serde_json_xform 480k | −31.0% | −43.4% | −3.5% | −35.2% | −16.6% | −30.4% |
 
+The treebuild columns against bumpalo compare with a port that keeps
+growable 32-byte containers in every node, where the ordstack port keeps
+frozen 16-byte handles. Against `bumpalo-frozen`, a bumpalo port with the
+ordstack port's layout (added after a review; separate run,
+`results/frozen/`), ordstack is −4.5% / −1.9% in wall time (IQRs
+disjoint) and −16.0% / −16.0% in peak RSS at depth 7 / 8. The serde
+bumpalo port already has that layout. See point 1.
+
 The wall-time wins are corroborated by the noise-robust counters: user-mode
 instructions and cycles fall by similar amounts, so these are not
 scheduling artefacts.
 
 What that reading does *not* say, and should be read with it:
 
-1. **Against bumpalo, the time win is in `treebuild` only.** On
-   `serde_json_xform` ordstack is 3.5% faster than bumpalo (inside the 10%
-   "competitive" band) and executes 2% *more* user instructions; its
-   remaining edge there is cycles (fewer cache misses and faults). On
-   `treebuild` it beats bumpalo by 36–37% in time and 41–43% in RSS. That
-   gap is exactly the case the README advertises: bumpalo copies a
-   children vector that has to grow while later allocations sit above it,
-   and it never reuses the old bytes. bumpalo's arena holds 33.5 MB
-   (depth 7) and 268 MB (depth 8) of chunks, against ordstack's 15.6 and
-   81.2 MB of stack. Instruction counts are nearly equal (−1.3%); the
-   difference is memory traffic (cycles −41%, minor faults 4,095 vs 7,106).
+1. **Against bumpalo with the same layout, ordstack wins on memory, not
+   time.** On `serde_json_xform` ordstack is 3.5% faster than bumpalo
+   (inside the 10% "competitive" band) and executes 2% *more* user
+   instructions; its remaining edge there is fewer cycles and faults
+   (cache misses were not measured). On `treebuild` the direct bumpalo
+   port is 36–37% slower and 41–43% larger than ordstack, but most of that
+   gap is the port, not the allocator: its nodes hold growable containers
+   (96 bytes of handles per node against ordstack's 48), and
+   `bumpalo::format!` leaves spare string capacity in the arena. The
+   `bumpalo-frozen` port has the ordstack layout; against it ordstack is
+   −4.5% / −1.9% in wall time and −16% in peak RSS (15.8 vs 18.8 MB, 78.8
+   vs 93.8 MB), and executes about 9% *more* user instructions (167.5 vs
+   152.0 M at depth 7) in about the same number of cycles. The remaining
+   RSS gap is the case the README advertises: ordstack gives back each
+   string's spare capacity when it freezes it, and builds the children
+   vector on a second stack that is reused, while bumpalo keeps every byte
+   it hands out until the arena drops.
 2. **On `serde_json_xform`, a drop-in fast allocator gets the same speed
    for no code.** `std-mimalloc` is −34.0% / −34.4% in wall time against
    ordstack's −30.4% / −31.0%; its parse and transform phases are faster
@@ -125,8 +141,9 @@ What that reading does *not* say, and should be read with it:
   (14,986,734 bytes at 120k, 60,436,263 at 480k; the harness exits
   non-zero on a mismatch).
 - Raw data: `results/results-release.json` (the reading),
-  `results/results-release-lto.json`, `results/env-*.txt`, and the earlier
-  runs in `results/prelim/` and `results/loaded/`.
+  `results/results-release-lto.json`, `results/env-*.txt`, the earlier
+  runs in `results/prelim/` and `results/loaded/`, and the `bumpalo-frozen`
+  run (treebuild only) in `results/frozen/`.
 
 ## Load and re-runs
 
@@ -136,9 +153,10 @@ timed numbers come from the third full run:
 | run | when (UTC) | loadavg | outcome |
 |---|---|---|---|
 | preliminary (`results/prelim/`) | 04:49–04:56 | 45–60 | fixed CPU 11 (not checked for idleness), before the owner's note; superseded |
-| loaded (`results/loaded/`) | 04:59–05:13 | 45–68 | idle-CPU selection, but every case failed the 4% IQR bar three times; the culprit was `std-mimalloc` alone (e.g. treebuild 7: median 351 ms, range 152–2,141 ms, minor faults 10,518 against 333 when quiet); every other variant stayed within about 4%. Superseded |
+| loaded (`results/loaded/`) | 04:59–05:13 | 45–68 | idle-CPU selection, but every case except xform-480k failed the 4% IQR bar on all three attempts (xform-480k passed on its second, 0.99%); the culprit was `std-mimalloc` alone (e.g. treebuild 7: median 351 ms, range 152–2,141 ms, minor faults 10,518 against 333 when quiet); every other variant stayed within about 4%. Superseded |
 | **reported** (`results/results-release.json`) | 05:24–05:31 | 12 → 5 | all cases passed: treebuild 7 on its second attempt (first 4.2%, second 2.1%), the others first time (1.4%, 1.5%, 0.9%); machine 4–8% busy during the cases |
 | LTO sensitivity (`results/results-release-lto.json`) | 05:13–05:24 | 26 → 9 | treebuild 7 and 8 each needed a second attempt; final worst IQRs 3.3%, 3.2%, 0.9%, 1.6% |
+| `bumpalo-frozen` (`results/frozen/`), treebuild only, all six variants | 15:52 onwards | 33 → 37 | both cases passed first time (3.6%, 2.2%); `std`, `std-control`, `ordstack` and `bumpalo` agree with the reported run within 3% in wall time and 0.7 MB in peak RSS; `std-mimalloc` was slow under load again (88 / 590 ms against 56 / 268), as in the loaded run |
 
 The machine has SMT disabled, so there were no sibling threads to avoid.
 Per-case load (loadavg before and after, machine busy %) is listed above
@@ -213,7 +231,7 @@ process start, teardown and exit):
 | ordstack | 471.6 | 153.9 | 151.0 | 27.8 |
 | bumpalo | 489.4 | 165.6 | 161.3 | 17.7 |
 
-Parse dominates (50–55% of wall). The allocation-heavy transform phase is
+Parse dominates (about 50% of wall for std, 58–59% for the arena ports). The allocation-heavy transform phase is
 where std loses most (58 → 39 ms with ordstack). mimalloc is fastest
 there (32 ms). ordstack's write phase is the fastest of all variants,
 plausibly from locality: the records and their strings are contiguous.
@@ -261,9 +279,12 @@ From `Stack::high_water` / `Stack::extent` (one run, `ORDSTACK_STATS=1`):
   across a chunk boundary copies into a new chunk.
 - `treebuild`: effectively 0% reclaimed before teardown. Except for 256
   bytes of scratch, ordstack behaves as an arena with exact-size blocks
-  here. Its advantage over bumpalo on this program is that a growing
-  container is never copied: the children vector grows on a second stack
-  and is copied once, at exact size.
+  here. Against a bumpalo port with the same layout (`bumpalo-frozen`)
+  its advantage is exact sizes: strings give back their spare capacity
+  when frozen, and the children vector grows on a second stack and is
+  copied once, at exact size. bumpalo's arena held 33.5 / 134 MB of chunks
+  for `bumpalo-frozen` (268 MB for the direct port at depth 8) against
+  ordstack's 15.6 / 81.2 MB of stack.
 
 The library exposes no counters for in-place grows or bytes copied, so the
 "grew in place" share is the record array's capacity, not a measured
@@ -283,6 +304,7 @@ alike. "Code lines" are non-blank lines that are not comments.
 | treebuild | std-control | 85 | 59 (+26%) | +19 / −7 | 0 / 0 / 0 | 0 | — |
 | treebuild | **ordstack** | 134 | 86 (+83%) | +60 / −21 | 1 / 1 / 1 | 20 | 10 |
 | treebuild | bumpalo | 97 | 67 (+43%) | +41 / −21 | 1 / 1 / 1 | 18 | 5 |
+| treebuild | bumpalo-frozen | 104 | 63 (+34%) | +44 / −28 | 1 / 1 / 0 | 17 | 8 |
 | serde_json_xform | original | 74 | 56 | — | 0 / 0 / 0 | 0 | — |
 | serde_json_xform | std-control | 88 | 62 (+11%) | +8 / −2 | 0 / 0 / 0 | 0 | — |
 | serde_json_xform | **ordstack** | 352 | 269 (+380%) | +239 / −26 | 19 / 0 / 22 | 141 | 13 |
@@ -358,6 +380,13 @@ Each is marked `PORT:` in the ports.
   about 20 MB. That floor hid ordstack's 16 MB at treebuild 7 (reported as
   22.3 MB). The timed-run figures stay in the JSON; every other cell
   agrees within about 1 MB.
+- **A `bumpalo-frozen` treebuild variant was added after the reading**,
+  in response to a review: the direct bumpalo port keeps growable
+  containers in its nodes, so it did not isolate the allocator. It was
+  measured in a separate run with all six variants (`results/frozen/`);
+  the reading's tables above are unchanged, and the comparison against it
+  is reported next to them. Its serde binary is the existing bumpalo
+  port, which already freezes every field.
 - **The bumpalo `serde_json_xform` port mirrors ordstack's three-arena
   layout** (and resets two of them), rather than using one arena. That is
   the fairest comparison of allocation strategy, but it is more structure
@@ -389,8 +418,8 @@ Both runs: `RUNS=15 PERF_RUNS=3`. The `#[inline]` attributes went on
 |---|---|---|---|---|---|
 | treebuild-d7 | 0.363 | 0.376 (+3.6%) | 167.5 | 170.0 (+1.5%) | 144 / 152 |
 | treebuild-d8 | 0.359 | 0.365 (+1.7%) | 837.4 | 849.7 (+1.5%) | 144 / 152 |
-| xform-120k | 0.629 | 0.690 (+9.7%) | 120.9 | 115.7 (−4.3%) | 144 / 152 |
-| xform-480k | 0.679 | 0.673 (−0.9%) | 482.1 | 465.1 (−3.5%) | 144 / 152 |
+| xform-120k | 0.629 | 0.690 (+9.7%) | 1313.0 | 1306.9 (−0.5%) | 144 / 152 |
+| xform-480k | 0.679 | 0.673 (−0.9%) | 5276.0 | 5251.5 (−0.5%) | 144 / 152 |
 
 Load is the 1-minute load average at the start of each run, on 96 cores
 shared with other jobs. Every case except treebuild-d7 (after) exceeded
@@ -398,7 +427,9 @@ the harness's 4% wall-IQR noise bar on all three attempts; the reported
 attempts' worst IQRs were 5.9 / 22.0 / 37.3 / 23.5% before and 3.6 / 15.4
 / 27.2 / 9.7% after. The wall-time differences are therefore within
 noise. Instructions rose by about 1.5% on the tree-building cases and fell
-by about 4% on the serde cases.
+by about 0.5% on the serde cases. (An earlier version of this table gave
+the serde cases' parse-phase medians in ms, 120.9 / 482.1 before and
+115.7 / 465.1 after, in place of their instruction counts.)
 
 Decision: reverted. treebuild-d7 and xform-120k broke the wall-time rule,
 and the instruction counts, the noise-robust measure, show no consistent

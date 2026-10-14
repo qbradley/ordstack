@@ -22,6 +22,12 @@ path = "src/bin/ordstack.rs"
 name = "serde_json_xform-bumpalo"
 path = "src/bin/bumpalo.rs"
 
+# The serde bumpalo port already freezes every field (`into_bump_str`,
+# `into_bump_slice`), so its frozen-layout variant is the same source.
+[[bin]]
+name = "serde_json_xform-bumpalo-frozen"
+path = "src/bin/bumpalo.rs"
+
 [dependencies]
 ordstack = { path = "../../crates/ordstack" }
 bumpalo = { version = "3", features = ["collections"] }
