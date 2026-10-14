@@ -17,12 +17,13 @@ jobs:
           components: clippy, rustfmt
       - run: cargo fmt --all --check
         if: matrix.toolchain == 'stable'
-      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
         if: matrix.toolchain == 'stable'
       - run: scripts/check-unsafe-table.sh
       - run: cargo test --workspace
-      - run: cargo test --workspace --release
-      - run: cargo doc --workspace --no-deps
+      - run: cargo test --workspace --all-features
+      - run: cargo test --workspace --all-features --release
+      - run: cargo doc --workspace --no-deps --all-features
         env:
           RUSTDOCFLAGS: -D warnings
   ui:
@@ -41,7 +42,7 @@ jobs:
             echo "the committed passing twins are stale" >&2
             exit 1
           fi
-      - run: cargo test -p ordstack --test ui
+      - run: cargo test -p ordstack --all-features --test ui
         env:
           ORDSTACK_UI: "1"
   miri:
@@ -54,7 +55,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: miri
-      - run: cargo miri test -p ordstack
+      - run: cargo miri test -p ordstack --all-features
         env:
           MIRIFLAGS: ${{ matrix.flags }}
   sanitizer-and-fuzz:
@@ -64,7 +65,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rust-src
-      - run: cargo test -p ordstack --tests -Zbuild-std --target x86_64-unknown-linux-gnu
+      - run: cargo test -p ordstack --all-features --tests -Zbuild-std --target x86_64-unknown-linux-gnu
         env:
           RUSTFLAGS: -Zsanitizer=address
       - run: cargo install cargo-fuzz --locked

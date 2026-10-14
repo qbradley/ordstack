@@ -9,10 +9,11 @@ host="$(rustc -vV | sed -n 's/^host: //p')"
 step() { printf '\n== %s ==\n' "$*"; }
 
 step "format";                  cargo fmt --all --check
-step "clippy";                  cargo clippy --workspace --all-targets -- -D warnings
+step "clippy";                  cargo clippy --workspace --all-targets --all-features -- -D warnings
 step "unsafe table is current"; scripts/check-unsafe-table.sh
-step "tests (stable, debug)";   cargo test --workspace
-step "tests (stable, release)"; cargo test --workspace --release
+step "tests (stable, debug, default features)"; cargo test --workspace
+step "tests (stable, debug, all features)";     cargo test --workspace --all-features
+step "tests (stable, release, all features)";   cargo test --workspace --all-features --release
 step "ui twins are current"
 scripts/gen-ui-pass.sh
 if [ -n "$(git status --porcelain -- crates/ordstack/tests/ui/pass)" ]; then
@@ -21,10 +22,10 @@ if [ -n "$(git status --porcelain -- crates/ordstack/tests/ui/pass)" ]; then
     echo "the committed passing twins are stale: run scripts/gen-ui-pass.sh and commit" >&2
     exit 1
 fi
-step "tests + ui (MSRV 1.85)";  ORDSTACK_UI=1 cargo +1.85 test --workspace
-step "docs";                    RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
-step "miri (stacked borrows)";  cargo +nightly miri test -p ordstack
-step "miri (tree borrows)";     MIRIFLAGS=-Zmiri-tree-borrows cargo +nightly miri test -p ordstack
-step "address sanitizer";       RUSTFLAGS=-Zsanitizer=address cargo +nightly test -p ordstack --tests -Zbuild-std --target "$host"
+step "tests + ui (MSRV 1.85)";  ORDSTACK_UI=1 cargo +1.85 test --workspace --all-features
+step "docs";                    RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features
+step "miri (stacked borrows)";  cargo +nightly miri test -p ordstack --all-features
+step "miri (tree borrows)";     MIRIFLAGS=-Zmiri-tree-borrows cargo +nightly miri test -p ordstack --all-features
+step "address sanitizer";       RUSTFLAGS=-Zsanitizer=address cargo +nightly test -p ordstack --all-features --tests -Zbuild-std --target "$host"
 step "fuzz";                    (cd crates/ordstack && cargo +nightly fuzz run model -- -max_total_time="${FUZZ_SECONDS:-60}" -max_len=4096)
 printf '\nAll checks passed.\n'
