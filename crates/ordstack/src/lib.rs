@@ -15,6 +15,8 @@
 //! break the discipline does not compile. (Internally, growth still asserts
 //! that the block it extends ends at the bump pointer. That is a check for
 //! bugs in this crate, in every build; no safe program can make it fail.)
+//! The optional `FrameAlloc` adapter is the exception: it copies blocks
+//! that are not on top, see *Collections generic over an allocator*.
 //!
 //! This is a typed region arena with a growable top. Frozen blocks are not
 //! freed one by one, and the crate makes no speed or memory claim against a
@@ -177,7 +179,8 @@
 //! ```
 //!
 //! Zero-size values take no space and never reach the allocator, so they do
-//! not fail for lack of room or for alignment.
+//! not fail for lack of room or for alignment. (Through the optional
+//! `FrameAlloc` adapter they do reach it.)
 //!
 //! # Patterns
 //!

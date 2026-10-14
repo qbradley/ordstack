@@ -307,3 +307,18 @@ fn grow_and_shrink_change_alignment() {
         a.deallocate(one.cast(), l(1, 1));
     }
 }
+
+#[test]
+fn dangling_zero_size_blocks_are_ignored() {
+    // allocator-api2's `Box` hands out `NonNull::dangling()` for zero-size
+    // values and empty slices, and still passes it to `deallocate`.
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let a = f.allocator();
+    drop(allocator_api2::boxed::Box::new_in((), &a));
+    let e: allocator_api2::boxed::Box<[u32], _> = AVec::new_in(&a).into_boxed_slice();
+    drop(e);
+    let mut v: AVec<u8, _> = AVec::with_capacity_in(4, &a);
+    v.push(1);
+    assert_eq!(v, [1]);
+}

@@ -1,0 +1,75 @@
+error[E0277]: `Cell<usize>` cannot be shared between threads safely
+ --> tests/ui/fail/24_frame_allocator_not_sync.rs:7:41
+  |
+7 |     std::thread::scope(|s| drop(s.spawn(move || drop(r)))); // ERROR
+  |                                   ----- ^^^^^^^^^^^^^^^ `Cell<usize>` cannot be shared between threads safely
+  |                                   |
+  |                                   required by a bound introduced by this call
+  |
+  = help: within `FrameAlloc<'_, '_>`, the trait `Sync` is not implemented for `Cell<usize>`
+  = note: if you want to do aliasing and mutation between multiple threads, use `std::sync::RwLock` or `std::sync::atomic::AtomicUsize` instead
+note: required because it appears within the type `Stack`
+ --> src/stack.rs
+  |
+  | pub struct Stack {
+  |            ^^^^^
+  = note: required because it appears within the type `&Stack`
+note: required because it appears within the type `Frame<'_>`
+ --> src/frame.rs
+  |
+  | pub struct Frame<'f> {
+  |            ^^^^^
+  = note: required because it appears within the type `&mut Frame<'_>`
+note: required because it appears within the type `FrameAlloc<'_, '_>`
+ --> src/alloc.rs
+  |
+  | pub struct FrameAlloc<'v, 'f> {
+  |            ^^^^^^^^^^
+  = note: required for `&FrameAlloc<'_, '_>` to implement `Send`
+note: required because it's used within this closure
+ --> tests/ui/fail/24_frame_allocator_not_sync.rs:7:41
+  |
+7 |     std::thread::scope(|s| drop(s.spawn(move || drop(r)))); // ERROR
+  |                                         ^^^^^^^
+note: required by a bound in `Scope::<'scope, 'env>::spawn`
+ --> $RUST/std/src/thread/scoped.rs
+
+error[E0277]: `NonNull<u8>` cannot be shared between threads safely
+ --> tests/ui/fail/24_frame_allocator_not_sync.rs:7:41
+  |
+7 |     std::thread::scope(|s| drop(s.spawn(move || drop(r)))); // ERROR
+  |                                   ----- ^^^^^^^^^^^^^^^ `NonNull<u8>` cannot be shared between threads safely
+  |                                   |
+  |                                   required by a bound introduced by this call
+  |
+  = help: within `FrameAlloc<'_, '_>`, the trait `Sync` is not implemented for `NonNull<u8>`
+note: required because it appears within the type `ordstack::region::Region`
+ --> src/region.rs
+  |
+  | pub(crate) struct Region {
+  |                   ^^^^^^
+note: required because it appears within the type `Stack`
+ --> src/stack.rs
+  |
+  | pub struct Stack {
+  |            ^^^^^
+  = note: required because it appears within the type `&Stack`
+note: required because it appears within the type `Frame<'_>`
+ --> src/frame.rs
+  |
+  | pub struct Frame<'f> {
+  |            ^^^^^
+  = note: required because it appears within the type `&mut Frame<'_>`
+note: required because it appears within the type `FrameAlloc<'_, '_>`
+ --> src/alloc.rs
+  |
+  | pub struct FrameAlloc<'v, 'f> {
+  |            ^^^^^^^^^^
+  = note: required for `&FrameAlloc<'_, '_>` to implement `Send`
+note: required because it's used within this closure
+ --> tests/ui/fail/24_frame_allocator_not_sync.rs:7:41
+  |
+7 |     std::thread::scope(|s| drop(s.spawn(move || drop(r)))); // ERROR
+  |                                         ^^^^^^^
+note: required by a bound in `Scope::<'scope, 'env>::spawn`
+ --> $RUST/std/src/thread/scoped.rs

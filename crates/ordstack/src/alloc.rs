@@ -73,7 +73,13 @@ impl FrameAlloc<'_, '_> {
     }
 
     /// The offset of `p` when the block `[p, p + size)` ends at the top.
+    /// Never for a zero-size block: it occupies nothing, and its pointer may
+    /// not be in the region at all (allocator-api2's `Box` deallocates
+    /// `NonNull::dangling()` for zero-size values).
     fn top_block(&self, p: NonNull<u8>, size: usize) -> Option<usize> {
+        if size == 0 {
+            return None;
+        }
         let st = self.st();
         let off = st.offset_of(p);
         (off + size == st.extent()).then_some(off)

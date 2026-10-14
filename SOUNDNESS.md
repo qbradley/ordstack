@@ -10,6 +10,10 @@ The claim argued here is the one the crate documentation makes: in safe code,
 only the top block of a stack is ever grown, it grows in place, and memory is
 reclaimed only when no live value can reach it. Nothing here is a claim about
 speed or memory use, and the crate does not free frozen blocks one by one.
+The optional `FrameAlloc` (feature `allocator-api2`) is the one exception to
+the first half, by design: it serves collections this crate does not
+control, and copies a block that is not on top when it grows. It still keeps
+the second half; its argument is "The allocator adapter".
 
 ## Definitions
 
@@ -80,13 +84,17 @@ The only ways to obtain a pointer above an object's end are:
 | `SVec<'v, 'a, T>::freeze`, `SString::freeze`, `SMap::freeze` | `SSlice<'a, T>` / `SStr<'a>` / `SFrozenMap<'a, K, V, S>` | nothing new |
 | `SVec::freeze_into(self, &mut Frame<'g>)`, `SString::freeze_into`, `SMap::freeze_into` | `SSlice<'g, T>` / `SStr<'g>` / `SFrozenMap<'g, K, V, S>` | nothing new: `'g` already borrows the destination's parent |
 | `SFixedVec::into_slice`, `SFixedVec::into_iter`, `SSlice::into_iter` | same brand as the input | nothing new |
+| `Frame::allocator(&'a mut self)` (feature `allocator-api2`) | `FrameAlloc<'a, 'f>`, and through its `Allocator` methods raw blocks above the frame's end | the frame, for `'a` |
 | `SBox::leak`, `SSlice::leak`, `SStr::leak` | `&'a mut` | nothing new |
 | `Deref` / `DerefMut` on any handle | a reference bounded by the borrow of the handle | the handle, whose type carries the brand |
 
 Every handle type is covariant or invariant in its brand (H4 lists which),
 so a brand can be shortened at most, never lengthened, and a shortened brand
 is still outlived by the borrow that created it. `Frame` is neither `Clone` nor `Copy`. No function returns a
-pointer without a brand. `Frame::end_offset`, `Stack::extent`,
+pointer without a brand, except the `Allocator` methods of `FrameAlloc`,
+which return raw `NonNull<[u8]>`: using one takes `unsafe` code bound by the
+trait's contract, under which a block is valid only while the allocator is
+alive, so only while the borrow of the frame is. `Frame::end_offset`, `Stack::extent`,
 `Stack::high_water` and `Stack::capacity` return plain integers, and no safe
 function turns an integer back into a pointer.
 
@@ -100,8 +108,9 @@ bumped, and `SVec::try_grow_to` and `SMap::try_grow_to` set the capacity
 whose end is the new `top`. `FrameAlloc` (feature `allocator-api2`) raises
 `top` the same way when it allocates, or grows its top block in place.
 
-`reset_to(off)` is called only by a method that holds `&mut` (or ownership)
-of an object `X`, with `off` equal to `X`'s end as it is after the call. With
+Except in `FrameAlloc::deallocate` and `FrameAlloc::shrink` (the last two
+rows below, argued in "The allocator adapter"), `reset_to(off)` is called
+only by a method that holds `&mut` (or ownership) of an object `X`, with `off` equal to `X`'s end as it is after the call. With
 `&mut X` held, no child of `X` is live, so `X` is the top of the chain and
 every other live object has its end at or below `X`'s. So T holds after the
 reset.
@@ -129,11 +138,12 @@ The call sites, all of them:
 
 ## Why reset on reacquire is sound
 
-In every row above the caller holds `&mut` to `X`, or owns it. That means no
+In every row above except the two `FrameAlloc` rows (see "The allocator
+adapter") the caller holds `&mut` to `X`, or owns it. That means no
 borrow of `X` is live. By I, every pointer above `X`'s end needs such a
 borrow. So nothing above `X`'s end is reachable.
 
-In the last four rows `off` is below `X`'s old end, inside the vector's own
+In the `SVec::shrink_to_fit` and `SVec::freeze` rows `off` is below `X`'s old end, inside the vector's own
 buffer or at its frame's end. The extra range is `[off, old end)`. It holds
 the vector's own spare capacity (or, when `len == 0`, its whole empty
 buffer) and alignment padding before the buffer, and nothing else: by B the
@@ -157,7 +167,9 @@ every build, debug and release; if the argument here is right the assertion
 never fires. Apart from the lazy reset, which can only lower `top`, it is
 the only place in a release build where the library compares a block's end
 against `top`, and it guards against a bug in this crate rather than choosing between a
-fast and a slow path: there is no path that moves a buffer.
+fast and a slow path: there is no path that moves a buffer in the crate's own containers.
+`FrameAlloc` also compares a block's end with `top`, to choose between
+growing in place and copying; see "The allocator adapter".
 
 ## The allocator adapter
 
@@ -169,14 +181,14 @@ end; collections reach them only through `&FrameAlloc` or by owning the
 While the adapter lives nothing else allocates on the stack: the frame is
 borrowed by the adapter and every frame below is frozen by the borrows that
 made this one. So the adapter's blocks are the only objects above the
-frame's end, and `top` is the end of the highest of them (or the frame's end).
+frame's end, and every one of them ends at or below `top`.
 
 - **Disjoint.** A fresh block starts at or above `top`. A block grows in
   place only when it ends at `top`, so it grows into space no live block
   uses. A zero-size block occupies nothing.
 - **T.** `deallocate` and `shrink` lower `top` only for a block that ends
-  at `top`, to that block's start or new end; every other live block ends
-  at or below the block's start, so `top` stays `>=` every live end. (Two
+  at `top`, to that block's start or new end; every other live block
+  of non-zero size ends at or below the block's start, so `top` stays `>=` every live end. (Two
   blocks can end at `top` only if one of them has size zero.)
 - **E.** The frame's `end` is not written. The adapter's blocks are not
   frozen blocks and carry no `'f` brand.
@@ -187,6 +199,12 @@ frame's end, and `top` is the end of the highest of them (or the frame's end).
   alignment: `try_bump` aligns the start, and the in-place paths are taken
   only when the existing start is aligned for the new layout. Failures
   return `AllocError` and leave `top` unchanged (`try_bump`, `try_extend`).
+- **Zero sizes.** `top_block` answers "not on top" for every zero-size
+  block, so a zero-size block never moves `top` when it is freed and is
+  never extended in place. This also covers pointers that did not come
+  from `try_bump`: allocator-api2's `Box` hands out `NonNull::dangling()`
+  for zero-size values and still passes it to `deallocate`
+  (`tests/allocator.rs::dangling_zero_size_blocks_are_ignored`).
 - **H3.** No user code runs inside the adapter, so nothing re-enters it
   mid-operation.
 
@@ -417,6 +435,10 @@ reset `top`, does not move `end`, and cannot fail for lack of room or for
 alignment. In particular a zero-size `T` whose alignment is above 4096
 succeeds, with an aligned dangling pointer
 (`tests/frozen.rs::zero_size_value_with_alignment_above_the_limit_succeeds`).
+Through `FrameAlloc` (feature `allocator-api2`) a zero-size layout does
+reach `try_bump`: it gets a zero-byte block at `top`, so an alignment above
+4096 fails, and alignment padding moves `top` up until the adapter's memory
+is reclaimed.
 
 `SVec` gives a zero-size `T` capacity `usize::MAX` and never allocates; its
 `len` cannot overflow because `try_reserve` checks `len + additional` and
@@ -460,7 +482,7 @@ buffer exists. `Stack::ptr_at` checks `off <= region length` with an
 reference to a `Stack`. None is `Send` or `Sync`, and there is no `unsafe
 impl` of either (`tests/ui/fail/13_*`, `14_*`). `FrameAlloc` holds
 `&mut Frame`, which holds `&Stack`, so it is neither `Send` nor `Sync`
-(`tests/ui/fail/23_*`). Its `unsafe impl` is of
+(`tests/ui/fail/23_*`, `24_*`). Its `unsafe impl` is of
 `allocator_api2::alloc::Allocator`, not of `Send` or `Sync`.
 
 ### H9. The debug shadow
@@ -711,7 +733,9 @@ brand and holds initialised values, or the pointer is dangling and aligned
 and the block has zero size. The section "Why frozen blocks stay valid for
 their brand" is what discharges it.
 
-There are also 9 `unsafe fn`, all private to the crate; their contracts
+There are also 9 `unsafe fn` private to the crate, plus the 4 `unsafe fn`
+of the `Allocator` trait that `FrameAlloc` implements (`deallocate`,
+`grow`, `grow_zeroed`, `shrink`), whose contracts are the trait's; the 9 private contracts
 follow the table. There is one `unsafe impl`, of `allocator_api2::alloc::Allocator` for
 `FrameAlloc` (feature `allocator-api2`; justified in "The allocator
 adapter"), and no `unsafe trait`.
@@ -822,7 +846,7 @@ is meant for a large machine.
 - The test suite on stable, debug and release, with the default features
   and with `--all-features`, including the doctests of the crate
   documentation and of `README.md`.
-- **Compile-fail tests.** 23 cases in `tests/ui/fail`, one per rejection the
+- **Compile-fail tests.** 24 cases in `tests/ui/fail`, one per rejection the
   guarantee depends on, each with a compiling twin in `tests/ui/pass` that
   differs only in the offending line. The twins are generated by
   `scripts/gen-ui-pass.sh`; `check.sh` regenerates them and fails if they
