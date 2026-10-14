@@ -32,6 +32,11 @@ order, and freezes into an `SFrozenMap` in place. The crate documentation's
 *Patterns* section shows several stacks, children on the same stack,
 phases, and how to choose a reservation.
 
+With the `allocator-api2` feature, `Frame::allocator` also lets code written
+for `Vec<T, A>` or `hashbrown`'s `HashMap` run on a frame, several
+collections at once; the crate documentation's *Collections generic over an
+allocator* section says when to use it and when to use `SVec`/`SMap`.
+
 ## Several containers on one frame
 
 A growable container (`SVec`, `SString`, `SMap`) holds `&mut` to its frame,

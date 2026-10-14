@@ -12,9 +12,20 @@ categories = ["memory-management", "data-structures"]
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
+[dependencies]
+allocator-api2 = { version = "0.2", optional = true }
+
+[features]
+## `FrameAlloc`: a frame as an `allocator_api2` allocator.
+allocator-api2 = ["dep:allocator-api2"]
+
 [dev-dependencies]
 trybuild = "1"
 proptest = { version = "1", default-features = false, features = ["std"] }
+hashbrown = { version = "0.17", default-features = false, features = ["allocator-api2", "default-hasher"] }
 
 [lints.clippy]
 undocumented_unsafe_blocks = "deny"
+
+[package.metadata.docs.rs]
+all-features = true

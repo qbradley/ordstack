@@ -7,9 +7,14 @@ edition = "2024"
 [package.metadata]
 cargo-fuzz = true
 
+[features]
+default = ["allocator-api2"]
+allocator-api2 = ["ordstack/allocator-api2", "dep:allocator-api2"]
+
 [dependencies]
 libfuzzer-sys = "0.4"
 ordstack = { path = ".." }
+allocator-api2 = { version = "0.2", optional = true }
 
 [[bin]]
 name = "model"

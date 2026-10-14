@@ -1,6 +1,6 @@
 //! Compile-fail tests for every rejection the guarantee depends on.
 //! Compiler messages differ between releases, so this runs only when asked:
-//! `ORDSTACK_UI=1 cargo +1.85 test -p ordstack --test ui`.
+//! `ORDSTACK_UI=1 cargo +1.85 test -p ordstack --all-features --test ui`.
 
 #[test]
 fn ui() {

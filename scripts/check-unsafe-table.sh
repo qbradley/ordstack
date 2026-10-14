@@ -28,7 +28,7 @@ ttable="$(awk '/^The call sites, all of them:/,/^`reset_to` checks/' SOUNDNESS.m
 epara="$(awk '/^E holds because/,/^$/' SOUNDNESS.md)"
 for f in $(grep -l 'reset_to(' crates/ordstack/src/*.rs | grep -v '/stack\.rs$'); do
     case "$(basename "$f" .rs)" in
-        frame) ty=Frame ;; vec) ty=SVec ;; map) ty=SMap ;; *) ty="unlisted module $f" ;;
+        frame) ty=Frame ;; vec) ty=SVec ;; map) ty=SMap ;; alloc) ty=FrameAlloc ;; *) ty="unlisted module $f" ;;
     esac
     if ! grep -q "\`$ty::" <<<"$ttable"; then
         echo "SOUNDNESS.md's reset_to call-site table has no $ty row ($f calls reset_to)" >&2

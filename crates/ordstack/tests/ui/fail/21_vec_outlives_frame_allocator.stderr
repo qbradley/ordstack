@@ -1,0 +1,12 @@
+error[E0505]: cannot move out of `a` because it is borrowed
+  --> tests/ui/fail/21_vec_outlives_frame_allocator.rs:9:10
+   |
+6  |     let a = f.allocator();
+   |         - binding `a` declared here
+7  |     let mut v: Vec<u32, _> = Vec::new_in(&a);
+   |                                          -- borrow of `a` occurs here
+8  |     v.push(1);
+9  |     drop(a); // ERROR
+   |          ^ move out of `a` occurs here
+10 |     v.push(2);
+   |     - borrow later used here

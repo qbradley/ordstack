@@ -9,7 +9,7 @@
 //!
 //! | op        | operation                                                    |
 //! |-----------|--------------------------------------------------------------|
-//! | 0..=5, 21..=23 | push a fresh value                                      |
+//! | 0..=5, 21..=22 | push a fresh value (and 23 without the `allocator-api2` feature) |
 //! | 6         | pop                                                          |
 //! | 7         | truncate to `arg % (len + 1)`                                |
 //! | 8         | insert a fresh value at `arg % (len + 1)`                    |
@@ -25,6 +25,7 @@
 //! | 18        | extend with `arg % 8` fresh values; if `arg & 8`, from an iterator with no exact size hint |
 //! | 19        | move the elements (reversed) into a vector on a second stack, `freeze_into` this level's frame, then allocate a box; the source vector has `arg % 4` spare slots |
 //! | 20        | `split_above`, then `arg % 4 + 1` rounds in `sub` scopes (see `sub_scope`), `reset_above`, allocate again |
+//! | 23        | with the `allocator-api2` feature: `split_above`, then two allocator-api2 vectors on one `FrameAlloc` in the new frame (see `alloc_scope`) |
 //! | 24        | `split_above`, then map operations on a map in the new frame until the script ends the map (see `map_scope`) |
 
 use ordstack::{Frame, SBox, SMap, SSlice, SVec, Stack};
@@ -120,6 +121,12 @@ fn level<'f, 's, 'c>(
         let mut spare = 0;
         while let Some(op) = input.next() {
             match op % 25 {
+                #[cfg(feature = "allocator-api2")]
+                23 => {
+                    let (elems, mut up) = v.split_above();
+                    alloc_scope(&mut up, input, cx);
+                    assert_eq!(ids(elems), m, "a lower vector changed under an allocator");
+                }
                 0..=5 | 21..=23 => {
                     let t = cx.make();
                     m.push(t.id);
@@ -504,6 +511,61 @@ fn map_scope<'c>(
             drop(fm);
         }
     }
+}
+
+/// Two `allocator_api2` vectors on one adapter, driven until the script
+/// ends the scope. Op `b % 8` acts on vector `(b / 8) % 2`: 0..=2 push,
+/// 3 pop, 4 reserve `arg % 64`, 5 shrink_to_fit, 6 clear, 7 end (then
+/// `arg % 2` names the vector dropped first). Vectors drop front to back.
+#[cfg(feature = "allocator-api2")]
+fn alloc_scope<'c>(up: &mut Frame<'_>, input: &mut dyn Iterator<Item = u8>, cx: &'c Cx) {
+    use allocator_api2::vec::Vec as AVec;
+    let a = up.allocator();
+    let mut vs: [AVec<Tracked<'c>, _>; 2] = [AVec::new_in(&a), AVec::new_in(&a)];
+    let mut ms: [Vec<u32>; 2] = [Vec::new(), Vec::new()];
+    let mut first = 0;
+    while let Some(op) = input.next() {
+        let i = (op as usize / 8) % 2;
+        match op % 8 {
+            0..=2 => {
+                let t = cx.make();
+                ms[i].push(t.id);
+                vs[i].push(t);
+            }
+            3 => {
+                if let Some(t) = vs[i].pop() {
+                    let id = ms[i].pop().unwrap();
+                    assert_eq!(t.id, id);
+                    cx.expect([id]);
+                    drop(t);
+                }
+            }
+            4 => vs[i].reserve(arg(input) % 64),
+            5 => vs[i].shrink_to_fit(),
+            6 => {
+                cx.expect(ms[i].drain(..));
+                vs[i].clear();
+            }
+            _ => {
+                first = arg(input) % 2;
+                break;
+            }
+        }
+        for j in 0..2 {
+            assert_eq!(
+                ids(&vs[j]),
+                ms[j],
+                "an allocator-api2 vector differs from the model"
+            );
+        }
+    }
+    let [v0, v1] = vs;
+    let (a_first, a_second) = if first == 0 { (v0, v1) } else { (v1, v0) };
+    let (m_first, m_second) = (ms[first].clone(), ms[1 - first].clone());
+    cx.expect(m_first);
+    drop(a_first);
+    cx.expect(m_second);
+    drop(a_second);
 }
 
 /// Runs one script. Panics on any disagreement with the model.

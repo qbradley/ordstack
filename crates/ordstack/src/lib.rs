@@ -15,6 +15,8 @@
 //! break the discipline does not compile. (Internally, growth still asserts
 //! that the block it extends ends at the bump pointer. That is a check for
 //! bugs in this crate, in every build; no safe program can make it fail.)
+//! The optional `FrameAlloc` adapter is the exception: it copies blocks
+//! that are not on top, see *Collections generic over an allocator*.
 //!
 //! This is a typed region arena with a growable top. Frozen blocks are not
 //! freed one by one, and the crate makes no speed or memory claim against a
@@ -111,6 +113,27 @@
 //! assert_eq!(*total, 5);
 //! ```
 //!
+//! # Collections generic over an allocator
+//!
+//! With the `allocator-api2` feature, `Frame::allocator` returns a
+//! `FrameAlloc`, an allocator for collections generic over
+//! `allocator_api2::alloc::Allocator`: `allocator_api2::vec::Vec`,
+//! `hashbrown`'s maps and sets, and others. Any number of them can grow on
+//! one frame at once through `&FrameAlloc`; the one on top grows in place,
+//! the others copy when they grow. Everything allocated through the adapter
+//! is reclaimed when the frame is next used after it.
+//!
+//! Choose `SVec`, `SString` and `SMap` when the result should outlive the
+//! scope that builds it (`freeze` gives frame-lifetime handles in place,
+//! `freeze_into` copies to another stack), when insertion order matters
+//! (`SMap`), or when no space may be wasted. Choose the adapter to reuse
+//! code written for `Vec<T, A>` or `HashMap<K, V, S, A>`, or to grow
+//! several collections on one frame at once; growth that is not at the top
+//! copies and leaves dead space until the adapter's memory is reclaimed,
+//! and nothing allocated through it outlives the adapter. As with `std`, a
+//! failed allocation in an infallible method such as `push` aborts; use the
+//! collection's `try_reserve` to handle it.
+//!
 //! # Reclamation is lazy
 //!
 //! Nothing is reclaimed when a handle is dropped; destructors only drop
@@ -156,7 +179,8 @@
 //! ```
 //!
 //! Zero-size values take no space and never reach the allocator, so they do
-//! not fail for lack of room or for alignment.
+//! not fail for lack of room or for alignment. (Through the optional
+//! `FrameAlloc` adapter they do reach it.)
 //!
 //! # Patterns
 //!
@@ -285,6 +309,8 @@ compile_error!(
     "ordstack 0.1 supports Unix targets only (Linux is tested; macOS is intended to work but is untested)"
 );
 
+#[cfg(feature = "allocator-api2")]
+mod alloc;
 mod boxed;
 mod debug;
 mod error;
@@ -298,6 +324,8 @@ mod stack;
 mod string;
 mod vec;
 
+#[cfg(feature = "allocator-api2")]
+pub use alloc::FrameAlloc;
 pub use boxed::SBox;
 pub use error::{AllocError, AllocErrorKind};
 pub use fixed::SFixedVec;

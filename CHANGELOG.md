@@ -10,6 +10,7 @@
 - `SMap`: a growable, insertion-ordered hash map on a frame (`map` module); grows in place, `swap_remove`/`shift_remove`, iteration in insertion order whatever the hasher
 - `SMap::entry` with `or_insert`, `or_insert_with`, `or_default` (`map::Entry`, `OccupiedEntry`, `VacantEntry`)
 - `SFrozenMap`: `SMap::freeze` (in place; the index is compacted and the rest of the block given back) and `SMap::freeze_into` (another stack)
+- Feature `allocator-api2`: `Frame::allocator` returns `FrameAlloc`, an `allocator_api2` allocator, so `allocator_api2::vec::Vec`, `hashbrown` and other allocator-generic collections run on a frame (issue #4)
 
 ## 0.1.0 (unreleased)
 

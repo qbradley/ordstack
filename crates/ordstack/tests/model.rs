@@ -90,3 +90,19 @@ fn fixed_script_map() {
         0, 11, 0, 24, 0, 4,
     ]);
 }
+
+#[test]
+#[cfg(feature = "allocator-api2")]
+fn fixed_script_allocator() {
+    // Each scope starts with op 23 and ends with op 7 (`7 % 8`) and which
+    // vector to drop first. Op bytes 0..8 act on vector 0, 8..16 on vector 1.
+    // 1: push to 0 x2, push to 1 x2, pop 0, reserve 1 by 40, push to 0,
+    //    shrink 1, clear 0, push 0; drop vector 1 first.
+    // 2: push to 1 x3, pop 1 then 0 (empty); drop vector 0 first.
+    // 3: at depth 1, push to 0; the script ends inside the scope.
+    model::run(&[
+        0, 23, 0, 0, 8, 8, 3, 12, 40, 0, 13, 6, 0, 7, 1, //
+        23, 8, 8, 8, 11, 3, 7, 0, //
+        0, 11, 0, 23, 0,
+    ]);
+}
