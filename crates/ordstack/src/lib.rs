@@ -285,6 +285,8 @@ compile_error!(
     "ordstack 0.1 supports Unix targets only (Linux is tested; macOS is intended to work but is untested)"
 );
 
+#[cfg(feature = "allocator-api2")]
+mod alloc;
 mod boxed;
 mod debug;
 mod error;
@@ -298,6 +300,8 @@ mod stack;
 mod string;
 mod vec;
 
+#[cfg(feature = "allocator-api2")]
+pub use alloc::FrameAlloc;
 pub use boxed::SBox;
 pub use error::{AllocError, AllocErrorKind};
 pub use fixed::SFixedVec;
