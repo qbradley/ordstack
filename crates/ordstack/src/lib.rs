@@ -85,6 +85,32 @@
 //! assert_eq!((hello.as_str(), *n), ("hello", 5));
 //! ```
 //!
+//! # Maps
+//!
+//! [`SMap`] is a hash map that grows on a frame the way an [`SVec`] does: it
+//! holds the frame, keeps its entries in insertion order in one block, and
+//! grows that block in place. Iteration follows insertion order, so output
+//! never depends on the hasher. [`SMap::freeze`] turns it into an
+//! [`SFrozenMap`] where it stands, compacting the index and giving the rest
+//! of the block back, so the frame is free again; [`SMap::freeze_into`]
+//! moves it to a frame of another stack.
+//!
+//! ```
+//! use ordstack::{SFrozenMap, SMap, Stack};
+//!
+//! let mut st = Stack::with_reserve(1 << 16);
+//! let mut f = st.frame();
+//! let mut m: SMap<&str, u32> = SMap::new_in(&mut f);
+//! for w in "the cat saw the dog".split(' ') {
+//!     *m.entry(w).or_default() += 1;
+//! }
+//! let counts: SFrozenMap<&str, u32> = m.freeze();
+//! let total = f.alloc(counts.values().sum::<u32>()); // the frame is free again
+//! assert_eq!(counts.get("the"), Some(&2));
+//! assert_eq!(counts.keys().copied().collect::<Vec<_>>(), ["the", "cat", "saw", "dog"]);
+//! assert_eq!(*total, 5);
+//! ```
+//!
 //! # Reclamation is lazy
 //!
 //! Nothing is reclaimed when a handle is dropped; destructors only drop
