@@ -770,13 +770,18 @@ is meant for a large machine.
 - **AddressSanitizer** runs the integration and unit tests (not the
   doctests) with a sanitised standard library.
 - **Shadow-model property test.** `tests/common/model.rs` is an interpreter
-  whose 24 byte values (`byte % 24`) select 16 distinct operations on a
+  whose 25 byte values (`byte % 25`) select 17 distinct operations on a
   vector of drop-tracked values (nine of the values are push): push, pop,
   truncate, insert, remove, swap_remove, retain, clear, extend, reserve,
   shrink_to_fit, descend through `split_above` (to depth 6), leave the level
   (at depth 0: drop the vector and start a fresh one), freeze,
-  `freeze_into` through a second stack, and sub-frame scopes with
-  `reset_above`. After every operation the contents are compared with a
+  `freeze_into` through a second stack, sub-frame scopes with
+  `reset_above`, and a map scope: an `SMap<u8, Tracked>` built above the
+  vector through `split_above`, driven by its own sub-script (insert,
+  `swap_remove`, `shift_remove`, `entry().or_insert_with`, a box allocated
+  above the map) with every step checked against a `Vec` model of the
+  insertion order and a lookup of every key, and ended by dropping, `freeze`
+  (then a box beside the frozen map), or `freeze_into` the scratch stack. After every operation the contents are compared with a
   `Vec` model, frozen blocks are re-read after later allocations, and at the
   end every value must have been dropped exactly once in the expected
   order. `tests/model.rs`
@@ -798,9 +803,10 @@ is meant for a large machine.
 - AddressSanitizer sees the region as one valid mapping, so it cannot detect
   a use of reclaimed memory inside the region. That is what the debug shadow
   and the model's content checks are for.
-- The property test and fuzzer explore one element type and one thread.
+- The property test and fuzzer explore one element type, one map type and one thread.
   `SFixedVec`, `SString`, `sformat!`, `Frame::alloc_slice_from_iter`, by-value
-  iteration of an `SVec` (`VecIntoIter`), allocation failure, `Stack::reset`
+  iteration of an `SVec` (`VecIntoIter`), `SMap::clear`, `Extend` for `SMap`, `SMap` growth failure,
+  allocation failure, `Stack::reset`
   and `Stack::trim` are outside the interpreter and are covered only by the
   hand-written tests.
 - The compile-fail tests show that particular programs are rejected. They
