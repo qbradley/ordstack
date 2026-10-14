@@ -1,7 +1,8 @@
 //! `SMap` and `SFrozenMap`.
 
+use ordstack::map::Entry;
 use ordstack::{AllocErrorKind, SMap, Stack};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::rc::Rc;
@@ -374,4 +375,39 @@ fn a_panicking_destructor_in_clear_drops_the_rest_once() {
     assert!(m.is_empty() && m.get(&0).is_none());
     m.insert(5, Bomb(5, l.clone()));
     assert_eq!(m.len(), 1);
+}
+
+#[test]
+fn entry_api() {
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let mut m: SMap<&str, u32> = SMap::new_in(&mut f);
+    *m.entry("a").or_insert(1) += 10;
+    assert_eq!(m.get("a"), Some(&11));
+    let calls = Cell::new(0);
+    m.entry("a").or_insert_with(|| {
+        calls.set(calls.get() + 1);
+        0
+    });
+    assert_eq!(calls.get(), 0); // not called for a present key
+    *m.entry("b").or_default() += 2;
+    assert_eq!(m.entry("b").key(), &"b");
+    match m.entry("a") {
+        Entry::Occupied(mut e) => {
+            assert_eq!((e.key(), e.index(), *e.get()), (&"a", 0, 11));
+            *e.get_mut() = 12;
+        }
+        Entry::Vacant(_) => unreachable!(),
+    }
+    match m.entry("c") {
+        Entry::Vacant(e) => {
+            assert_eq!(e.key(), &"c");
+            *e.insert(5) += 1;
+        }
+        Entry::Occupied(_) => unreachable!(),
+    }
+    assert_eq!(
+        m.iter().map(|(k, v)| (*k, *v)).collect::<Vec<_>>(),
+        [("a", 12), ("b", 2), ("c", 6)]
+    );
 }

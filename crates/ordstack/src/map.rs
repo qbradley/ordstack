@@ -171,12 +171,7 @@ where
 /// let mut f = st.frame();
 /// let mut m: SMap<&str, u32> = SMap::new_in(&mut f);
 /// for w in "a b a c b a".split(' ') {
-///     match m.get_mut(w) {
-///         Some(n) => *n += 1,
-///         None => {
-///             m.insert(w, 1);
-///         }
-///     }
+///     *m.entry(w).or_insert(0) += 1;
 /// }
 /// assert_eq!(m.get("a"), Some(&3));
 /// assert_eq!(m.keys().copied().collect::<Vec<_>>(), ["a", "b", "c"]);
@@ -760,6 +755,131 @@ impl<K, V> DoubleEndedIterator for ValuesMut<'_, K, V> {
 }
 
 impl<K, V> ExactSizeIterator for ValuesMut<'_, K, V> {}
+
+impl<'v, 'f, K: Hash + Eq, V, S: BuildHasher> SMap<'v, 'f, K, V, S> {
+    /// The entry for `key`, for in-place insertion or update.
+    pub fn entry(&mut self, key: K) -> Entry<'_, 'v, 'f, K, V, S> {
+        let hash = self.hasher.hash_one(&key);
+        let (b, index) = self.parts();
+        match lookup(b, index, hash, &key) {
+            Some(index) => Entry::Occupied(OccupiedEntry { map: self, index }),
+            None => Entry::Vacant(VacantEntry {
+                map: self,
+                hash,
+                key,
+            }),
+        }
+    }
+}
+
+/// A view into one key's place in an [`SMap`], from [`SMap::entry`].
+pub enum Entry<'a, 'v, 'f, K, V, S> {
+    /// The key is present.
+    Occupied(OccupiedEntry<'a, 'v, 'f, K, V, S>),
+    /// The key is absent.
+    Vacant(VacantEntry<'a, 'v, 'f, K, V, S>),
+}
+
+/// A present key, in an [`Entry`].
+pub struct OccupiedEntry<'a, 'v, 'f, K, V, S> {
+    map: &'a mut SMap<'v, 'f, K, V, S>,
+    index: usize,
+}
+
+/// An absent key, in an [`Entry`].
+pub struct VacantEntry<'a, 'v, 'f, K, V, S> {
+    map: &'a mut SMap<'v, 'f, K, V, S>,
+    hash: u64,
+    key: K,
+}
+
+impl<'a, K, V, S> Entry<'a, '_, '_, K, V, S> {
+    /// The entry's key.
+    pub fn key(&self) -> &K {
+        match self {
+            Entry::Occupied(e) => e.key(),
+            Entry::Vacant(e) => e.key(),
+        }
+    }
+
+    /// The value, inserting `default` if the key is absent.
+    ///
+    /// # Panics
+    /// As [`SMap::insert`].
+    pub fn or_insert(self, default: V) -> &'a mut V {
+        match self {
+            Entry::Occupied(e) => e.into_mut(),
+            Entry::Vacant(e) => e.insert(default),
+        }
+    }
+
+    /// The value, inserting `f()` if the key is absent. `f` runs before
+    /// anything is reserved.
+    ///
+    /// # Panics
+    /// As [`SMap::insert`].
+    pub fn or_insert_with(self, f: impl FnOnce() -> V) -> &'a mut V {
+        match self {
+            Entry::Occupied(e) => e.into_mut(),
+            Entry::Vacant(e) => e.insert(f()),
+        }
+    }
+
+    /// The value, inserting `V::default()` if the key is absent.
+    ///
+    /// # Panics
+    /// As [`SMap::insert`].
+    pub fn or_default(self) -> &'a mut V
+    where
+        V: Default,
+    {
+        self.or_insert_with(V::default)
+    }
+}
+
+impl<'a, K, V, S> OccupiedEntry<'a, '_, '_, K, V, S> {
+    /// The key in the map.
+    pub fn key(&self) -> &K {
+        &self.map.parts().0[self.index].key
+    }
+
+    /// The entry's position in insertion order.
+    pub fn index(&self) -> usize {
+        self.index
+    }
+
+    /// The value.
+    pub fn get(&self) -> &V {
+        &self.map.parts().0[self.index].value
+    }
+
+    /// The value, mutably.
+    pub fn get_mut(&mut self) -> &mut V {
+        &mut self.map.parts_mut().0[self.index].value
+    }
+
+    /// The value, mutably, for as long as the map was borrowed.
+    pub fn into_mut(self) -> &'a mut V {
+        &mut self.map.parts_mut().0[self.index].value
+    }
+}
+
+impl<'a, K, V, S> VacantEntry<'a, '_, '_, K, V, S> {
+    /// The key that would be inserted.
+    pub fn key(&self) -> &K {
+        &self.key
+    }
+
+    /// Inserts the key with `value` at the end of the map.
+    ///
+    /// # Panics
+    /// If the stack is exhausted, the capacity overflows, or an entry needs
+    /// alignment above 4096.
+    pub fn insert(self, value: V) -> &'a mut V {
+        let i = self.map.push(self.hash, self.key, value);
+        &mut self.map.parts_mut().0[i].value
+    }
+}
 
 #[cfg(test)]
 mod tests {

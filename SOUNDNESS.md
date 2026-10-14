@@ -248,8 +248,8 @@ User code runs inside the library in: element destructors, `Clone::clone`
 `SString` `Extend` impls), the `retain` predicate, the `alloc_with` closure,
 the comparison, hashing and formatting impls that delegate to the
 elements, the `Hash` and `Eq` impls of map keys and the `BuildHasher` of a map
-(`SMap::insert`, every lookup and keyed removal, `entry`), and `Extend` for
-`SMap`.
+(`SMap::insert`, every lookup and keyed removal, `entry`), `Extend` for `SMap`,
+and the `or_insert_with` closure.
 
 Re-entrancy. Three different situations, which must not be conflated:
 
@@ -325,6 +325,7 @@ state: nothing in them is mid-update.
 | `SMap::insert`, lookups, `swap_remove`, `shift_remove` (hasher, `Hash`, `Eq`) | nothing changed yet: the key is hashed and the index probed before any write | nothing to undo |
 | `SMap::clear`, `Drop` for `SMap` (entry destructors) | `len := 0` and, for `clear`, the index already emptied | `drop_back_to_front`'s guard drops the rest; the map is empty and consistent |
 | `Extend` for `SMap` | map consistent between inserts | entries inserted so far remain |
+| `Entry::or_insert_with` closure | the key was probed and found absent; nothing reserved yet | nothing to undo; the key is dropped with the entry |
 
 In every case `top` and every `end` are consistent, because user code never
 runs between a change to `top` and the matching change to a container's or
@@ -439,7 +440,7 @@ its `debug_assert!` covers only `off <= top`.
 
 ## Per-function table
 
-One row for each of the 100 public functions (`grep -n "pub fn\|pub const fn"
+One row for each of the 112 public functions (`grep -n "pub fn\|pub const fn"
 crates/ordstack/src/*.rs`), then the trait impls. "Resets" means
 `reset_to(own end)`, justified under "Why reset on reacquire is sound".
 
@@ -577,6 +578,18 @@ crates/ordstack/src/*.rs`), then the trait impls. "Resets" means
 | `SMap::contains_key` | `&SMap` | `get_index_of` |
 | `SMap::swap_remove` | `&mut SMap` | `get_index_of`, then `swap_remove_index` |
 | `SMap::shift_remove` | `&mut SMap` | `get_index_of`, then `shift_remove_index` |
+| `SMap::entry` | `&mut SMap` | hashes and probes before returning (H3); the entry borrows the map mutably, so nothing changes the map while it exists |
+| `Entry::key` | `&Entry` | reads the key |
+| `Entry::or_insert` | `Entry` by value | `OccupiedEntry::into_mut` or `VacantEntry::insert` |
+| `Entry::or_insert_with` | `Entry` by value | runs `f` before anything is reserved (H3), then `VacantEntry::insert` |
+| `Entry::or_default` | `Entry` by value | `or_insert_with(V::default)` |
+| `OccupiedEntry::key` | `&OccupiedEntry` | bounds-checked read; the index was found while the map has been borrowed since |
+| `OccupiedEntry::index` | `&OccupiedEntry` | reads the index |
+| `OccupiedEntry::get` | `&OccupiedEntry` | as `key` |
+| `OccupiedEntry::get_mut` | `&mut OccupiedEntry` | as `key`, through `parts_mut` |
+| `OccupiedEntry::into_mut` | `OccupiedEntry` by value | as `get_mut`, for the map borrow `'a` |
+| `VacantEntry::key` | `&VacantEntry` | reads the key |
+| `VacantEntry::insert` | `VacantEntry` by value | `push` with the hash computed by `entry`: `reserve(1)`, write entry `len`, record its slot; no user code between the probe and the push |
 
 ### `AllocError`
 
