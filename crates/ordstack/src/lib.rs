@@ -111,6 +111,27 @@
 //! assert_eq!(*total, 5);
 //! ```
 //!
+//! # Collections generic over an allocator
+//!
+//! With the `allocator-api2` feature, `Frame::allocator` returns a
+//! `FrameAlloc`, an allocator for collections generic over
+//! `allocator_api2::alloc::Allocator`: `allocator_api2::vec::Vec`,
+//! `hashbrown`'s maps and sets, and others. Any number of them can grow on
+//! one frame at once through `&FrameAlloc`; the one on top grows in place,
+//! the others copy when they grow. Everything allocated through the adapter
+//! is reclaimed when the frame is next used after it.
+//!
+//! Choose `SVec`, `SString` and `SMap` when the result should outlive the
+//! scope that builds it (`freeze` gives frame-lifetime handles in place,
+//! `freeze_into` copies to another stack), when insertion order matters
+//! (`SMap`), or when no space may be wasted. Choose the adapter to reuse
+//! code written for `Vec<T, A>` or `HashMap<K, V, S, A>`, or to grow
+//! several collections on one frame at once; growth that is not at the top
+//! copies and leaves dead space until the adapter's memory is reclaimed,
+//! and nothing allocated through it outlives the adapter. As with `std`, a
+//! failed allocation in an infallible method such as `push` aborts; use the
+//! collection's `try_reserve` to handle it.
+//!
 //! # Reclamation is lazy
 //!
 //! Nothing is reclaimed when a handle is dropped; destructors only drop
