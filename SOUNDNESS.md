@@ -72,13 +72,14 @@ The only ways to obtain a pointer above an object's end are:
 |---|---|---|
 | `Stack::frame(&'a mut self)` | `Frame<'a>` | the stack, for `'a` |
 | `Frame::sub(&'a mut self)` | `Frame<'a>` | the frame, for `'a` |
-| `SVec::above(&'a mut self)`, `SString::above` | `Frame<'a>` | the container, for `'a` |
+| `SVec::above(&'a mut self)`, `SString::above`, `SMap::above` | `Frame<'a>` | the container, for `'a` |
 | `SVec::split_above(&'a mut self)`, `SString::split_above` | `Frame<'a>` (and `&'a mut [T]` / `&'a mut str`, which points below the container's end) | the container, for `'a` |
-| `SVec::new_in(&'v mut Frame<'a>)`, `with_capacity_in`, `from_iter_in`, and the `SString` constructors | `SVec<'v, 'a, T>` / `SString<'v, 'a>` | the frame, for `'v`; `'a` already borrows the frame's parent |
-| `Frame<'a>::alloc`, `try_alloc`, `alloc_with`, `alloc_slice_copy`, `alloc_slice_clone`, `alloc_str`, `SFixedVec::with_capacity_in` | handle branded `'a` | nothing new: `'a` already borrows the parent. The block is below the frame's own end, so I asks nothing about the frame |
-| `SVec<'v, 'a, T>::freeze`, `SString::freeze` | `SSlice<'a, T>` / `SStr<'a>` | nothing new |
-| `SVec::freeze_into(self, &mut Frame<'g>)`, `SString::freeze_into` | `SSlice<'g, T>` / `SStr<'g>` | nothing new: `'g` already borrows the destination's parent |
-| `SFixedVec::into_slice`, `SSlice::into_iter` | same brand as the input | nothing new |
+| `SVec::new_in(&'v mut Frame<'a>)`, `with_capacity_in`, `from_iter_in`, the `SString` constructors (and `sformat!`, which calls one), and the `SMap` constructors (`new_in`, `with_capacity_in`, `with_hasher_in`, `with_capacity_and_hasher_in`) | `SVec<'v, 'a, T>` / `SString<'v, 'a>` / `SMap<'v, 'a, K, V, S>` | the frame, for `'v`; `'a` already borrows the frame's parent |
+| `SVec<'v, 'a, T>::into_iter` (by value) | `VecIntoIter<'v, 'a, T>`, which keeps the frame borrow | the frame, for `'v`, as the vector did |
+| `Frame<'a>::alloc`, `try_alloc`, `alloc_with`, `alloc_slice_copy`, `alloc_slice_clone`, `alloc_slice_from_iter`, `alloc_str`, `SFixedVec::with_capacity_in` | handle branded `'a` | nothing new: `'a` already borrows the parent. The block is below the frame's own end, so I asks nothing about the frame |
+| `SVec<'v, 'a, T>::freeze`, `SString::freeze`, `SMap::freeze` | `SSlice<'a, T>` / `SStr<'a>` / `SFrozenMap<'a, K, V, S>` | nothing new |
+| `SVec::freeze_into(self, &mut Frame<'g>)`, `SString::freeze_into`, `SMap::freeze_into` | `SSlice<'g, T>` / `SStr<'g>` / `SFrozenMap<'g, K, V, S>` | nothing new: `'g` already borrows the destination's parent |
+| `SFixedVec::into_slice`, `SFixedVec::into_iter`, `SSlice::into_iter` | same brand as the input | nothing new |
 | `SBox::leak`, `SSlice::leak`, `SStr::leak` | `&'a mut` | nothing new |
 | `Deref` / `DerefMut` on any handle | a reference bounded by the borrow of the handle | the handle, whose type carries the brand |
 
@@ -95,7 +96,8 @@ function turns an integer back into a pointer.
 raise it, and by `reset_to`, which lowers it. Raising `top` cannot break T.
 The callers that create or enlarge an object set its end to at most the new
 `top`: `Frame::try_alloc_array` sets `end` to the end of the block just
-bumped, and `SVec::try_grow_to` sets the capacity whose end is the new `top`.
+bumped, and `SVec::try_grow_to` and `SMap::try_grow_to` set the capacity
+whose end is the new `top`.
 
 `reset_to(off)` is called only by a method that holds `&mut` (or ownership)
 of an object `X`, with `off` equal to `X`'s end as it is after the call. With
@@ -114,6 +116,9 @@ The call sites, all of them:
 | `SVec::shrink_to_fit`, `len == 0` | `frame.end` | `frame.end`: the buffer is given up, `cap := 0` |
 | `SVec::freeze`, `len > 0` | buffer start + `len` elements | the vector is consumed; `frame.end := off` |
 | `SVec::freeze`, `len == 0`, buffer allocated | `frame.end` | the vector is consumed; `frame.end` unchanged |
+| `SMap::try_grow_to`, `above` | the map's block end | unchanged (then raised by a successful growth) |
+| `SMap::freeze`, `len > 0` | block start + `len` entries + the compact index | the map is consumed; `frame.end := off` |
+| `SMap::freeze`, `len == 0`, block allocated | `frame.end` | the map is consumed; `frame.end` unchanged |
 
 `reset_to` checks `off <= top` with a `debug_assert!` and does nothing when
 `top` is already at or below `off`.
@@ -178,11 +183,13 @@ the stack, is mutably borrowed for at least `F`'s brand. So the block is
 neither reclaimed nor unmapped while the brand is alive. `F` itself never
 resets below its own `end`.
 
-E holds because `F.end` is written in two places. `try_alloc_array` sets it
-to the end of a block bumped at or above the old `end`. `SVec::freeze` sets
-it to the end of the vector's initialised elements, which by B is above the
-old `end`; `freeze` of a vector with no elements or no buffer leaves it
-unchanged.
+E holds because `F.end` is written in three places. `try_alloc_array` sets
+it to the end of a block bumped at or above the old `end`. `SVec::freeze`
+sets it to the end of the vector's initialised elements, which by B is above
+the old `end`; `freeze` of a vector with no elements or no buffer leaves it
+unchanged. `SMap::freeze` sets it to the end of the compacted block (the
+entries and the new index), which lies inside the map's block and so, by B,
+above the old `end`; `freeze` of a map with no entries leaves it unchanged.
 
 Blocks do not overlap: `try_alloc_array` resets `top` to `F.end` (above
 every earlier block of `F`) and bumps from there; a vector's buffer is
@@ -395,8 +402,8 @@ is a heap block requested with alignment 4096. A zero-length region uses the
 address 4096 as a base that is never dereferenced, because every non-zero
 request on it fails.
 
-A map entry is never zero-size and its alignment is at least 8, because it
-holds the `u64` hash; so a map of zero-size keys and values still bumps a
+A map entry is never zero-size and its alignment is at least that of
+`u64` (8, or 4 on some 32-bit targets), because it holds the `u64` hash; so a map of zero-size keys and values still bumps a
 real block, and the index that follows `n` entries is 4-aligned. An entry
 whose `K` or `V` needs alignment above 4096 fails with `AlignTooLarge`.
 
@@ -410,7 +417,7 @@ most `isize::MAX` minus one page, so every block satisfies the size limit of
 `slice::from_raw_parts`. Offsets within a live buffer
 (`cap * size_of::<T>()`, `len * size_of::<T>()`) cannot overflow because the
 buffer exists. `Stack::ptr_at` checks `off <= region length` with an
-`assert!` in every build before it does pointer arithmetic. For maps, `slots_for` refuses more than `u32::MAX - 1` entries and doubles with `checked_mul`; `block_bytes` multiplies and adds with `checked_*`; the new end in `try_grow_to` is a `checked_add`. `usable(slots) * E + slots * 4` for an existing block, and the compacted size in `freeze` (which is smaller), cannot overflow because the block exists. An entry index plus one fits a `u32` because `len <= u32::MAX - 1`.
+`assert!` in every build before it does pointer arithmetic. For maps, `slots_for` refuses more than `u32::MAX - 1` entries and doubles with `checked_mul`; `block_bytes` multiplies and adds with `checked_*`; the new end in `try_grow_to` is a `checked_add`. `usable(slots) * E + slots * 4` for an existing block, and the compacted size in `freeze` (which is smaller), cannot overflow because the block exists. An entry index plus one fits a `u32` because `len <= u32::MAX - 1`: `capacity()` is capped at that limit even when the largest index has room for more, so a push past it reaches `slots_for`, which refuses it (unit test `the_entry_limit_holds_with_spare_capacity`).
 
 ### H8. Threads
 
@@ -560,7 +567,7 @@ crates/ordstack/src/*.rs`), then the trait impls. "Resets" means
 | `SMap::with_capacity_and_hasher_in` | `&'v mut Frame<'f>` | `with_hasher_in`, then `reserve` |
 | `SMap::len` | `&SMap` | reads `len` |
 | `SMap::is_empty` | `&SMap` | reads `len` |
-| `SMap::capacity` | `&SMap` | reads `slots` |
+| `SMap::capacity` | `&SMap` | reads `slots`; at most `u32::MAX - 1` |
 | `SMap::hasher` | `&SMap` | a shared reference to the hasher |
 | `SMap::reserve` | `&mut SMap` | `try_reserve`, panicking on error |
 | `SMap::try_reserve` | `&mut SMap` | grows only through `try_grow_to`: resets to its own end, then bumps (no block yet) or extends at `top` (B, T); entries never move; the index is zeroed and rebuilt from stored hashes by safe code (M); no user code; on error no field changes |

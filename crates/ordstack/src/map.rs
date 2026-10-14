@@ -329,9 +329,11 @@ impl<'v, 'f, K, V, S> SMap<'v, 'f, K, V, S> {
         self.len == 0
     }
 
-    /// The number of entries the map can hold without growing.
+    /// The number of entries the map can hold without growing. Never more
+    /// than `u32::MAX - 1`, the most entries a map can hold, even when the
+    /// index has room for more.
     pub fn capacity(&self) -> usize {
-        usable(self.slots)
+        usable(self.slots).min(MAX_LEN)
     }
 
     /// The map's hasher.
@@ -1207,6 +1209,23 @@ mod tests {
         assert_eq!(slots_for(MAX_LEN + 1), Err(OVERFLOW));
         assert_eq!(block_bytes::<u64, u64>(8), Ok(7 * 24 + 32));
         assert_eq!(block_bytes::<u64, u64>(usize::MAX / 2 + 1), Err(OVERFLOW));
+    }
+
+    /// The largest index has room for more than `MAX_LEN` entries; the
+    /// limit holds anyway. The capacity is set without a block behind it,
+    /// so the map is never touched or dropped.
+    #[test]
+    #[cfg(target_pointer_width = "64")]
+    fn the_entry_limit_holds_with_spare_capacity() {
+        let largest = slots_for(MAX_LEN).unwrap();
+        assert!(usable(largest) > MAX_LEN);
+        let mut st = crate::Stack::with_reserve(0);
+        let mut f = st.frame();
+        let mut m = ManuallyDrop::new(SMap::<(), ()>::new_in(&mut f));
+        m.slots = largest;
+        assert_eq!(m.capacity(), MAX_LEN);
+        assert_eq!(m.try_reserve(MAX_LEN), Ok(()));
+        assert_eq!(m.try_reserve(MAX_LEN + 1), Err(OVERFLOW));
     }
 
     /// Every entry is found from its hash, and the slots hold exactly the

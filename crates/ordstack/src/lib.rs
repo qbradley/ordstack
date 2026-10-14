@@ -132,8 +132,8 @@
 //! above 4096. Creating a stack panics when the requested reservation is too
 //! large or the operating system refuses the mapping.
 //! [`Stack::try_with_reserve`], [`Frame::try_alloc`],
-//! [`SVec::try_push`], [`SVec::try_reserve`] and [`SString::try_reserve`]
-//! return an [`AllocError`] instead.
+//! [`SVec::try_push`], [`SVec::try_reserve`], [`SString::try_reserve`] and
+//! [`SMap::try_reserve`] return an [`AllocError`] instead.
 //!
 //! A failed allocation changes no object: lengths, capacities, pointers and
 //! frame ends are as before, and no stored value is lost.
