@@ -11,11 +11,12 @@ per variant, pinned to one CPU. The JSON gains `rss_time_kb` per case.
 """
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
 
-VARIANTS = ["std", "std-mimalloc", "std-control", "ordstack", "bumpalo"]
+VARIANTS = ["std", "std-mimalloc", "std-control", "ordstack", "bumpalo", "bumpalo-frozen"]
 
 
 def main():
@@ -42,8 +43,12 @@ def main():
                 res[v].append(int(open(out).read().split()[-1]))
         c["rss_time_kb"] = res
         print("rss %s: %s" % (name, {v: sorted(x) for v, x in res.items()}), flush=True)
-    with open(path, "w") as f:
+    shutil.rmtree(tmp)
+    # Written beside the original and renamed over it, so an interrupted
+    # write cannot destroy the timed results.
+    with open(path + ".tmp", "w") as f:
         json.dump(r, f, indent=1)
+    os.replace(path + ".tmp", path)
 
 
 main()

@@ -15,7 +15,8 @@ import re
 import subprocess
 
 WORKLOADS = {
-    "treebuild": ["orig.rs", "bin/std_control.rs", "bin/ordstack.rs", "bin/bumpalo.rs"],
+    "treebuild": ["orig.rs", "bin/std_control.rs", "bin/ordstack.rs", "bin/bumpalo.rs",
+                  "bin/bumpalo_frozen.rs"],
     "serde_json_xform": ["orig.rs", "bin/std_control.rs", "bin/ordstack.rs", "bin/bumpalo.rs"],
 }
 HEAD = re.compile(r"\b(struct|enum|fn|impl)\b")

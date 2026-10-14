@@ -54,7 +54,7 @@ cargo tree --locked -e normal --depth 1 >> "$ENVF"
 
 # Only the std-mimalloc binaries may contain mimalloc.
 for p in treebuild serde_json_xform; do
-  for v in std std-mimalloc std-control ordstack bumpalo; do
+  for v in std std-mimalloc std-control ordstack bumpalo bumpalo-frozen; do
     n=$(nm "$BIN/$p-$v" | grep -c ' T mi_free$' || true)
     echo "$p-$v mi_free symbols: $n" >> "$ENVF"
   done

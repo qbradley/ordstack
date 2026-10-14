@@ -103,8 +103,9 @@ def main():
     print()
     print("| input | ordstack time vs std | IQRs disjoint | time ≥10% better | "
           "ordstack RSS vs std | RSS ≥10% better | time vs bumpalo | RSS vs bumpalo | "
-          "instructions:u vs std / bumpalo | cycles vs std / bumpalo |")
-    print("|---|---|---|---|---|---|---|---|---|---|")
+          "instructions:u vs std / bumpalo | cycles vs std / bumpalo |" +
+          (" time vs bumpalo-frozen | RSS vs bumpalo-frozen |" if "bumpalo-frozen" in vs else ""))
+    print("|---|---|---|---|---|---|---|---|---|---|%s" % ("---|---|" if "bumpalo-frozen" in vs else ""))
     useful = {}
     for name, s in summ.items():
         o, st, b = s["ordstack"], s["std"], s["bumpalo"]
@@ -123,6 +124,10 @@ def main():
                 100 * (o[ck] / st[ck] - 1), 100 * (o[ck] / b[ck] - 1))
         else:
             pc = "n/a | n/a"
+        if "bumpalo-frozen" in s:
+            bf = s["bumpalo-frozen"]
+            pc += " | %+.1f%% | %+.1f%%" % (100 * (o["wall"][1] / bf["wall"][1] - 1),
+                                           100 * (o["rss"][1] / bf["rss"][1] - 1))
         print("| %s | %+.1f%% | %s | %s | %+.1f%% | %s | %+.1f%% | %+.1f%% | %s |" % (
             name, 100 * dt, "yes" if disjoint else "no", "yes" if tb else "no",
             100 * dr, "yes" if rb else "no", 100 * bt, 100 * br, pc))
