@@ -404,7 +404,7 @@ its `debug_assert!` covers only `off <= top`.
 
 ## Per-function table
 
-One row for each of the 70 public functions (`grep -n "pub fn\|pub const fn"
+One row for each of the 72 public functions (`grep -n "pub fn\|pub const fn"
 crates/ordstack/src/*.rs`), then the trait impls. "Resets" means
 `reset_to(own end)`, justified under "Why reset on reacquire is sound".
 
@@ -430,6 +430,8 @@ crates/ordstack/src/*.rs`), then the trait impls. "Resets" means
 | `Frame::reset_above` | `&mut Frame` | resets |
 | `Frame::trim_above` | `&mut Frame` | resets, then discards whole pages at or above `end`, all unreachable |
 | `Frame::end_offset` | `&Frame` | reads `end` |
+| `Frame::stack` | `&Frame` | returns `&Stack` bounded by the borrow of the frame; through `&Stack` only `capacity`, `extent`, `high_water` and `Debug` are reachable, and they read `Cell`s |
+| `Frame::alloc_slice_from_iter` | `&mut Frame<'f>` | `SVec::from_iter_in` on this frame, then `SVec::freeze`; no code of its own touches the stack |
 | `Frame::alloc_slice_copy` | `&mut Frame<'f>` | block from `try_alloc_array` (resets, bumps, raises `end` past the block: E); filled before the handle exists |
 | `Frame::alloc_slice_clone` | `&mut Frame<'f>` | as above; clones written one by one under a guard (H3) |
 | `Frame::alloc_str` | `&mut Frame<'f>` | `alloc_slice_copy` of the bytes of a `str` |

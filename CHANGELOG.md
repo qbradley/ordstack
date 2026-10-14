@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.0 (unreleased)
+
+- `Frame::stack`: read a stack's statistics while frames are alive
+- `Frame::alloc_slice_from_iter`: collect an iterator into a frozen block in place
+
 ## 0.1.0 (unreleased)
 
 - `Stack`, `Frame`
