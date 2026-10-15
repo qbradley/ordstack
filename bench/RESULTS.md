@@ -453,7 +453,8 @@ source:
 
 The port keeps the original's work wherever the API allows:
 - the map hashes its keys as `str` does, with std's `RandomState`;
-- `to_uppercase` keeps std's ASCII fast path;
+- `to_uppercase` converts an ASCII prefix byte by byte (not std's exact
+  implementation, but the same in both new variants);
 - buffers start at the capacities `format!` and `collect` would reserve;
 - the parser is dropped when parsing ends, as `from_reader` does.
 
@@ -471,18 +472,20 @@ The run is in `results/alloc/` (31 rounds, all eight variants).
 `ordstack` lands within 1–7 points of the reading above in wall time against
 `std` (the largest gap is at 480k), and its peak RSS matches it.
 
-**The machine was busy** (8–29% of all CPUs during the cases). Every case
+**The machine was busy**: 17–26% of all CPUs during the reported attempts
+(15–41% across every attempt). Every case
 went to a re-run, and none met the 4% IQR rule; the worst variant's IQR was
-5–48% of its median. `std-mimalloc` again came out slower than `std`, the
-artefact described in "Load and re-runs". Each wall time below is
+5–48% of its median. `std-mimalloc` again came out slower than `std` in three of
+the four cases, the artefact described in "Load and re-runs". Each wall time below is
 therefore given with whether its IQR is disjoint from the one it is
 compared with. A further run on a quiet machine is planned and will update
 these wall times.
 
-User-mode instruction counts were identical in every run of a variant (min =
-max), and peak RSS varied by under 0.1 MiB for these two variants. The variants
-this change did not touch (`std`, `ordstack`, the bumpalo ports) gave the same
-user-instruction counts as the reading above. Total instructions (kernel
+For `ordstack-alloc` and `alloc-control`, user-mode instruction counts
+varied by under 0.001% between runs (identical to the summary's displayed
+precision), and peak RSS by under 0.1 MiB. The variants this change did not
+touch (`std`, `ordstack`, the bumpalo ports) gave the same user-instruction
+counts as the reading above, to the displayed precision. Total instructions (kernel
 included) and cycles vary with load and are in the summary but not used
 here. RSS is in MiB, which is what `summarise.py` prints (its label said MB
 before this change). Stack high water is converted to MiB as well.
@@ -491,7 +494,7 @@ before this change). Stack high water is converted to MiB as well.
 |---|---|---|---|---|---|---|
 | treebuild 7 | wall ms | 86.0 | 105.5 | −18.5% (disjoint) | −8.4% (disjoint) | +12.4% |
 | | instructions:u M | 242.0 | 403.9 | −40.1% | −36.5% | +6.1% |
-| | peak RSS MiB | 52.5 | 56.2 | −6.6% | +11.1% | +19.0% |
+| | peak RSS MiB | 52.5 | 56.2 | −6.7% | +11.1% | +19.0% |
 | treebuild 8 | wall ms | 551.0 | 588.1 | −6.3% (overlap) | +10.2% (overlap) | +17.6% |
 | | instructions:u M | 1242.1 | 2051.7 | −39.5% | −34.9% | +7.5% |
 | | peak RSS MiB | 257.2 | 281.2 | −8.5% | +8.2% | +18.3% |
@@ -510,7 +513,8 @@ Reading:
 1. **The adapter itself cuts allocator work, by about 40% of user
    instructions on treebuild and 17–20% on serde, against the same code on
    the system allocator.** Where the wall-time IQRs are separate, wall time
-   falls by about as much (18–21%).
+   falls by 18–21%: about as much as the instructions on serde, and less on
+   treebuild, where the instructions fall by 40%.
 2. **Against `std`, by the reading rule:** `ordstack-alloc` does *not* meet
    the rule on `treebuild`. Its time gain is under 10% at depth 7, inside
    the noise at depth 8, and its RSS is higher. It *does* meet the time
@@ -520,7 +524,7 @@ Reading:
    above bumpalo's (263.3 vs 220.7 ms, 1029.7 vs 866.2 ms), outside the 10%
    band.
 3. **The port, not the adapter, costs memory on treebuild.** On the system
-   allocator the port is 16–19% larger than `std`. Its handles are wider:
+   allocator the port is 18–19% larger than `std`. Its handles are wider:
    allocator-api2's `Vec` is 32 bytes against 24 (it stores the allocator),
    a `Box` in `A` is 16 bytes against 8, and a map entry holds a 32-byte
    key. On treebuild the adapter is 7–9% *smaller* than that control:
@@ -545,5 +549,7 @@ for treebuild (+64% against the original's 47; the native port 86, bumpalo
 So `FrameAlloc` makes allocator-generic code cheaper to run without
 restructuring it, and on a parse-and-transform workload it is clearly
 faster than `std`. It does not give the native containers' memory savings.
-Where blocks are freed or grown out of stack order, it holds more memory
-than a general-purpose allocator.
+Blocks freed or grown out of stack order are not reclaimed until the adapter
+ends. That can make it hold more memory than a general-purpose allocator, and
+on serde it did. On treebuild the savings in allocator overhead outweighed
+the retention.
