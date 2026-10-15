@@ -29,8 +29,14 @@ type Str<A> = Vec<u8, A>;
 // PORT: a map key hashes as `str` does (bytes, then 0xff), not as a byte
 // slice (length, then bytes), so the map does the original's hashing work.
 // The map keeps std's hasher (`RandomState`).
-#[derive(PartialEq, Eq)]
 struct Key<A: Allocator>(Str<A>);
+
+impl<A: Allocator> PartialEq for Key<A> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+impl<A: Allocator> Eq for Key<A> {}
 
 impl<A: Allocator> Hash for Key<A> {
     fn hash<H: Hasher>(&self, state: &mut H) {
