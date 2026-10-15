@@ -439,63 +439,111 @@ machine if a profile shows the calls.
 
 ## Addendum 2026-10-15: `ordstack-alloc`, the original on `FrameAlloc`
 
-A seventh variant, `ordstack-alloc` (`src/bin/ordstack_alloc.rs`), runs the
-original program with its containers on one ordstack frame through
-`FrameAlloc` (feature `allocator-api2`, #4). It uses allocator-api2's
-`Vec`/`Box` and hashbrown's `HashMap` (with std's `RandomState`, so only the
-allocator changes), and a byte vector wherever the original has a `String`.
-It answers what the adapter gives code that moves over almost unchanged,
-against the `SVec`/`SMap` port (`ordstack`). The full run is in
-`results/alloc/` (31 rounds, all seven variants; `ordstack` and both
-bumpalo ports land within 4 points of the reading above in wall time and
-match it in peak RSS).
+Two more variants answer what the `FrameAlloc` adapter (feature
+`allocator-api2`, #4) gives code that moves over almost unchanged.
+`src/alloc_port.rs` is the original program made generic over an allocator:
+allocator-api2's `Vec` and `Box` and hashbrown's `HashMap` in `A`, with a byte
+vector wherever the original has a `String`. Two binaries run that one
+source:
 
-**The machine was loaded during this run.** Every case went to three
-attempts, and no attempt met the 4% IQR rule (the best were 40–89%).
-`std-mimalloc` came out 38–212% *slower* than `std`, the load artefact
-already seen in "Load and re-runs". So wall times here are indicative
-only. Instruction counts and peak RSS do not depend on load, and the
-reading below rests on them.
+- `ordstack-alloc` runs it on one ordstack frame (`A = &FrameAlloc`).
+- `alloc-control` runs it on the system allocator (`A = &Global`). Against
+  `ordstack-alloc`, the allocator is the only difference: same source, same
+  container types, same handle sizes.
 
-| input | wall vs std | instructions:u vs std | peak RSS vs std | stack high water |
-|---|---|---|---|---|
-| treebuild 7 | −9.3% (`ordstack` −66.2%) | −34.7% (`ordstack` −56.0%) | **+7.9%** (51.0 MB; `ordstack` 16.5) | 52.1 MB (`ordstack` 15.6) |
-| treebuild 8 | −8.4% (−65.0%) | −33.2% (−56.1%) | **+7.6%** (255.8 MB; 78.8) | 267.1 MB (81.2) |
-| serde_json_xform 120k | −12.1%, IQRs disjoint (−31.9%) | −11.2% (−19.6%) | **+41.6%** (81.8 MB; 33.8) | 86.6 MB |
-| serde_json_xform 480k | −16.2%, IQRs disjoint (−35.0%) | −7.9% (−16.6%) | **+42.7%** (323.2 MB; 128.2) | 346.3 MB |
+The port keeps the original's work wherever the API allows:
+- the map hashes its keys as `str` does, with std's `RandomState`;
+- `to_uppercase` keeps std's ASCII fast path;
+- buffers start at the capacities `format!` and `collect` would reserve;
+- the parser is dropped when parsing ends, as `from_reader` does.
 
-Reading: **the adapter saves time over `std` but uses more memory, and it
-falls well short of the native port on both.** It saves a third of the
-user instructions on treebuild and a tenth on serde, which is the cost of
-`malloc`/`free` per allocation removed. It does not meet the brief's rule
-on either workload: the wall-time gain stays under 10% on treebuild, and
-peak RSS rises on both.
+The differences that remain apply to both variants, so the control absorbs
+them, but they do separate both from `std`:
+- strings are checked as UTF-8 when serialized;
+- allocator-api2's `Vec` lacks some of std's specialised `extend` paths;
+- std's `BTreeMap` takes no allocator, so its nodes stay on the heap;
+- the hand-written `DeserializeSeed`s replace serde's derives, which have
+  no allocator parameter. Like the native port's, they do not reject
+  duplicate keys or accept a record written as an array, which the input
+  never contains.
 
-Why memory goes up:
+The run is in `results/alloc/` (31 rounds, all eight variants).
+`ordstack` lands within 1–7 points of the reading above in wall time against
+`std` (the largest gap is at 480k), and its peak RSS matches it.
 
-1. **Only the top block grows in place, and in this code it rarely is the
-   top.** A node's `children` vector grows after the node's subtree has
-   been built above it, so each growth copies and leaves the old block
-   behind. The same happens to the record array during parsing, and to the
-   seven `by_bucket` vectors, which grow round-robin. Nothing is reclaimed
-   until the adapter ends, so every abandoned block counts toward the peak.
-   The native port avoids this by building each growable on its own scratch
-   stack and freezing it.
-2. **No free before the end.** `std` reuses memory freed during the run.
-   For example, serde frees the parsed records while it transforms them,
-   and the adapter can only reclaim what is on top.
-3. **Container layout.** Every node carries a hashbrown table with the
-   minimum 4 buckets, and allocator-api2's `Vec` is 32 bytes (it stores a
-   `&FrameAlloc`) against `String`/`Vec`'s 24.
+**The machine was busy** (8–29% of all CPUs during the cases). Every case
+went to a re-run, and none met the 4% IQR rule; the worst variant's IQR was
+5–48% of its median. `std-mimalloc` again came out slower than `std`, the
+artefact described in "Load and re-runs". Each wall time below is
+therefore given with whether its IQR is disjoint from the one it is
+compared with. A further run on a quiet machine is planned and will update
+these wall times.
 
-Source cost: `treebuild` changes only in its types and the allocator
-argument. `serde_json_xform` still needs hand-written `DeserializeSeed`s,
-because `Deserialize` has no allocator parameter: 236 code lines against
-the original's 56, against `ordstack`'s 269 and `bumpalo`'s 235
-(`results/alloc/srcstats.md`).
+User-mode instruction counts were identical in every run of a variant (min =
+max), and peak RSS varied by under 0.1 MiB for these two variants. The variants
+this change did not touch (`std`, `ordstack`, the bumpalo ports) gave the same
+user-instruction counts as the reading above. Total instructions (kernel
+included) and cycles vary with load and are in the summary but not used
+here. RSS is in MiB, which is what `summarise.py` prints (its label said MB
+before this change). Stack high water is converted to MiB as well.
 
-So `FrameAlloc` is a way to run allocator-generic code on a stack with
-less allocator work. It is not a substitute for the native containers
-when memory matters, and on a workload that grows non-top collections it
-costs memory against `std`. A quieter re-run would tighten the wall times.
-It would not change the instruction or RSS figures.
+| input | measure | `ordstack-alloc` | `alloc-control` | adapter vs control | `ordstack-alloc` vs `std` | `alloc-control` vs `std` |
+|---|---|---|---|---|---|---|
+| treebuild 7 | wall ms | 86.0 | 105.5 | −18.5% (disjoint) | −8.4% (disjoint) | +12.4% |
+| | instructions:u M | 242.0 | 403.9 | −40.1% | −36.5% | +6.1% |
+| | peak RSS MiB | 52.5 | 56.2 | −6.6% | +11.1% | +19.0% |
+| treebuild 8 | wall ms | 551.0 | 588.1 | −6.3% (overlap) | +10.2% (overlap) | +17.6% |
+| | instructions:u M | 1242.1 | 2051.7 | −39.5% | −34.9% | +7.5% |
+| | peak RSS MiB | 257.2 | 281.2 | −8.5% | +8.2% | +18.3% |
+| serde 120k | wall ms | 263.3 | 335.1 | −21.4% (disjoint) | −14.8% (disjoint) | +8.5% |
+| | instructions:u M | 1352.5 | 1692.0 | −20.1% | −17.1% | +3.7% |
+| | peak RSS MiB | 81.8 | 66.8 | **+22.5%** | +41.6% | +15.6% |
+| serde 480k | wall ms | 1029.7 | 1261.6 | −18.4% (disjoint) | −23.1% (disjoint) | −5.8% |
+| | instructions:u M | 5436.0 | 6576.9 | −17.3% | −14.0% | +4.0% |
+| | peak RSS MiB | 323.2 | 262.5 | **+23.1%** | +42.7% | +15.9% |
+
+For reference, the native port (`ordstack`) against `std`: −56% / −56% / −20% / −17%
+user instructions and −67% / −67% / −42% / −43% peak RSS.
+
+Reading:
+
+1. **The adapter itself cuts allocator work, by about 40% of user
+   instructions on treebuild and 17–20% on serde, against the same code on
+   the system allocator.** Where the wall-time IQRs are separate, wall time
+   falls by about as much (18–21%).
+2. **Against `std`, by the reading rule:** `ordstack-alloc` does *not* meet
+   the rule on `treebuild`. Its time gain is under 10% at depth 7, inside
+   the noise at depth 8, and its RSS is higher. It *does* meet the time
+   criterion on `serde_json_xform`: −14.8% and −23.1%, IQRs disjoint at
+   both sizes. Its peak RSS there is 42–43% *above* `std`'s, though. It is
+   not competitive with bumpalo on that workload: wall time is 19% / 19%
+   above bumpalo's (263.3 vs 220.7 ms, 1029.7 vs 866.2 ms), outside the 10%
+   band.
+3. **The port, not the adapter, costs memory on treebuild.** On the system
+   allocator the port is 16–19% larger than `std`. Its handles are wider:
+   allocator-api2's `Vec` is 32 bytes against 24 (it stores the allocator),
+   a `Box` in `A` is 16 bytes against 8, and a map entry holds a 32-byte
+   key. On treebuild the adapter is 7–9% *smaller* than that control:
+   no malloc headers or size-class rounding outweigh the blocks it
+   abandons.
+4. **On serde the adapter itself costs 22–23% more memory than the control.**
+   It reclaims a freed block only when that block is on top of the stack.
+   The parsed records' strings and vectors are freed one by one while the
+   output records are built. `malloc` reuses that memory; the adapter does
+   not, because each freed block lies below newer ones. Likewise, the record
+   array and the seven `by_bucket` vectors grow while other blocks sit above
+   them, so each growth copies and leaves the old block behind. The stack's
+   high water (82.6 MiB at 120k, 330.2 MiB at 480k) is about the peak RSS.
+   How much of it is retained frees and how much abandoned copies was not
+   measured.
+
+Source cost (`results/alloc/srcstats.md`): `alloc_port.rs` is 77 code lines
+for treebuild (+64% against the original's 47; the native port 86, bumpalo
+67) and 238 for serde (+325%; native 269, bumpalo 235), almost all of it
+`DeserializeSeed`s.
+
+So `FrameAlloc` makes allocator-generic code cheaper to run without
+restructuring it, and on a parse-and-transform workload it is clearly
+faster than `std`. It does not give the native containers' memory savings.
+Where blocks are freed or grown out of stack order, it holds more memory
+than a general-purpose allocator.
