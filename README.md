@@ -5,8 +5,9 @@ proves the stack discipline.
 
 - Only the top block of a stack ever grows, and it grows in place.
 - Memory is reclaimed only when nothing can reach it.
-- Code that would break either rule does not compile. There is no per-block
-  header, no copy-on-grow and no slow path for a block that is not on top.
+- Code that would break either rule does not compile. The crate's own
+  containers have no per-block header, no copy-on-grow and no slow path for
+  a block that is not on top.
 
 ```rust
 use ordstack::{SVec, Stack};
@@ -34,8 +35,10 @@ phases, and how to choose a reservation.
 
 With the `allocator-api2` feature, `Frame::allocator` also lets code written
 for `Vec<T, A>` or `hashbrown`'s `HashMap` run on a frame, several
-collections at once; the crate documentation's *Collections generic over an
-allocator* section says when to use it and when to use `SVec`/`SMap`.
+collections at once. Unlike the crate's own containers, a collection on the
+adapter that grows while it is not on top is copied, and its old block is
+held until the adapter ends. The crate documentation's *Collections generic
+over an allocator* section says when to use it and when to use `SVec`/`SMap`.
 
 ## Several containers on one frame
 
@@ -90,8 +93,8 @@ tokens.push("a");
     let mut top = tokens.above();
     let mut seen: SMap<&str, ()> = SMap::new_in(&mut top);
     seen.insert("x", ());
-} // `seen` and its memory are gone here
-tokens.push("b"); // grows in place again
+} // `seen` is gone here; its memory is reclaimed when `tokens` next needs the top
+tokens.push("b");
 assert_eq!(tokens.len(), 2);
 ```
 
@@ -113,8 +116,9 @@ let words = words.freeze_into(&mut out); // lives on `keep`; `work` is free
 assert_eq!(&*words, ["apple", "fig", "pear"]);
 ```
 
-**A sub-frame.** `sub()` opens a child frame for temporary work; everything
-on it is reclaimed when it ends, and values already on the parent stay.
+**A sub-frame.** `sub()` opens a child frame for temporary work. When it
+ends, the parent takes its memory back the next time it allocates, and
+values already on the parent stay.
 
 ```rust
 use ordstack::{SVec, Stack};
@@ -162,16 +166,17 @@ time.
 
 ## Status
 
-0.1, experimental, not yet published. Unix only; developed and tested on
+0.1, experimental. Unix only; developed and tested on
 Linux, and intended to work on macOS. Safety is argued in
-[SOUNDNESS.md](SOUNDNESS.md) and tested with compile-fail tests, Miri under
+[SOUNDNESS.md](https://docs.rs/crate/ordstack/latest/source/SOUNDNESS.md) and tested with compile-fail tests, Miri under
 Stacked Borrows and Tree Borrows, AddressSanitizer, a shadow-model property
-test and a fuzz target (`scripts/check.sh` runs all of them); it is not
+test and a fuzz target (the repository's `scripts/check.sh` runs all of
+them); it is not
 mechanically proved. Expect breaking changes before 1.0.
 
 Minimum Rust version: 1.85.
 
 ## License
 
-MIT or Apache-2.0, at your option. See [LICENSE-MIT](LICENSE-MIT) and
-[LICENSE-APACHE](LICENSE-APACHE).
+MIT or Apache-2.0, at your option. See [LICENSE-MIT](https://docs.rs/crate/ordstack/latest/source/LICENSE-MIT) and
+[LICENSE-APACHE](https://docs.rs/crate/ordstack/latest/source/LICENSE-APACHE).
