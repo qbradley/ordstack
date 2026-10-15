@@ -298,7 +298,8 @@
 //! Safety rests on one invariant: every pointer into the region above an
 //! object carries a lifetime that keeps that object mutably borrowed. The
 //! argument, the hazards considered and a table of every `unsafe` block are
-//! in `SOUNDNESS.md` in the repository. It is argued and tested, not
+//! in `SOUNDNESS.md`, which ships with the crate
+//! ([source on docs.rs](https://docs.rs/crate/ordstack/latest/source/SOUNDNESS.md)). It is argued and tested, not
 //! mechanically proved.
 
 #![deny(unsafe_op_in_unsafe_fn)]
@@ -344,5 +345,5 @@ pub mod iter {
 
 /// Runs the README's examples as doctests.
 #[cfg(doctest)]
-#[doc = include_str!("../../../README.md")]
+#[doc = include_str!("../README.md")]
 struct ReadmeDoctests;
