@@ -446,8 +446,9 @@ original program with its containers on one ordstack frame through
 allocator changes), and a byte vector wherever the original has a `String`.
 It answers what the adapter gives code that moves over almost unchanged,
 against the `SVec`/`SMap` port (`ordstack`). The full run is in
-`results/alloc/` (31 rounds, all seven variants; the other six reproduce
-the reading above).
+`results/alloc/` (31 rounds, all seven variants; `ordstack` and both
+bumpalo ports land within 4 points of the reading above in wall time and
+match it in peak RSS).
 
 **The machine was loaded during this run.** Every case went to three
 attempts, and no attempt met the 4% IQR rule (the best were 40–89%).
