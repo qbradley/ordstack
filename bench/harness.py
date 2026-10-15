@@ -21,7 +21,7 @@ whole machine) is recorded before and during every case.
    stdout is checked again.
 3. perf stat (instructions, cycles), PERF_RUNS runs per variant and input,
    if perf works here; skipped cleanly otherwise.
-4. One untimed run of the ordstack and both bumpalo ports with ORDSTACK_STATS=1
+4. One untimed run of both ordstack and both bumpalo ports with ORDSTACK_STATS=1
    for arena statistics.
 """
 import json
@@ -32,7 +32,8 @@ import sys
 import tempfile
 import time
 
-VARIANTS = ["std", "std-mimalloc", "std-control", "ordstack", "bumpalo", "bumpalo-frozen"]
+VARIANTS = ["std", "std-mimalloc", "std-control", "ordstack", "ordstack-alloc", "alloc-control",
+            "bumpalo", "bumpalo-frozen"]
 
 
 def cases(work, outdir):
@@ -280,7 +281,7 @@ def main():
         print("perf: not available or not permitted; skipped", flush=True)
 
     for name, prog, args in cs:
-        for v in ("ordstack", "bumpalo", "bumpalo-frozen"):
+        for v in ("ordstack", "ordstack-alloc", "bumpalo", "bumpalo-frozen"):
             _, _, _, err = run([os.path.join(bindir, "%s-%s" % (prog, v))] + args(v),
                                env={"ORDSTACK_STATS": "1"}, tmp=tmp)
             result["stats"]["%s/%s" % (name, v)] = [

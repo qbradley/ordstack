@@ -16,7 +16,8 @@ import subprocess
 import sys
 import tempfile
 
-VARIANTS = ["std", "std-mimalloc", "std-control", "ordstack", "bumpalo", "bumpalo-frozen"]
+VARIANTS = ["std", "std-mimalloc", "std-control", "ordstack", "ordstack-alloc", "alloc-control",
+            "bumpalo", "bumpalo-frozen"]
 
 
 def main():

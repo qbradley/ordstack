@@ -28,7 +28,9 @@ name = "treebuild-bumpalo-frozen"
 path = "src/bin/bumpalo_frozen.rs"
 
 [dependencies]
-ordstack = { path = "../../crates/ordstack" }
+ordstack = { path = "../../crates/ordstack", features = ["allocator-api2"] }
+allocator-api2 = "0.2"
+hashbrown = { version = "0.17", default-features = false, features = ["allocator-api2"] }
 bumpalo = { version = "3", features = ["collections", "boxed"] }
 mimalloc = { version = "0.1", default-features = false }
 
@@ -37,3 +39,13 @@ mimalloc = { version = "0.1", default-features = false }
 [[bin]]
 name = "treebuild-std-control"
 path = "src/bin/std_control.rs"
+
+# The original generic over an allocator (src/alloc_port.rs), on a
+# `FrameAlloc`, and on the system allocator as its control.
+[[bin]]
+name = "treebuild-ordstack-alloc"
+path = "src/bin/ordstack_alloc.rs"
+
+[[bin]]
+name = "treebuild-alloc-control"
+path = "src/bin/alloc_control.rs"

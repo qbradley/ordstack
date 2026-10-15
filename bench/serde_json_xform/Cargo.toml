@@ -29,7 +29,9 @@ name = "serde_json_xform-bumpalo-frozen"
 path = "src/bin/bumpalo.rs"
 
 [dependencies]
-ordstack = { path = "../../crates/ordstack" }
+ordstack = { path = "../../crates/ordstack", features = ["allocator-api2"] }
+allocator-api2 = "0.2"
+
 bumpalo = { version = "3", features = ["collections"] }
 mimalloc = { version = "0.1", default-features = false }
 serde = { version = "1", features = ["derive"] }
@@ -40,3 +42,13 @@ serde_json = "1"
 [[bin]]
 name = "serde_json_xform-std-control"
 path = "src/bin/std_control.rs"
+
+# The original generic over an allocator (src/alloc_port.rs), on a
+# `FrameAlloc`, and on the system allocator as its control.
+[[bin]]
+name = "serde_json_xform-ordstack-alloc"
+path = "src/bin/ordstack_alloc.rs"
+
+[[bin]]
+name = "serde_json_xform-alloc-control"
+path = "src/bin/alloc_control.rs"
