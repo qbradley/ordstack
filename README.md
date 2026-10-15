@@ -162,7 +162,7 @@ time.
 
 ## Status
 
-0.1, experimental, not yet published. Unix only; developed and tested on
+0.1, experimental. Unix only; developed and tested on
 Linux, and intended to work on macOS. Safety is argued in
 [SOUNDNESS.md](SOUNDNESS.md) and tested with compile-fail tests, Miri under
 Stacked Borrows and Tree Borrows, AddressSanitizer, a shadow-model property
