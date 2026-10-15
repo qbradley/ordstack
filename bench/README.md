@@ -1,6 +1,6 @@
 # bench: is ordstack useful on two real workloads?
 
-Two small programs from the malloc-stacks corpus, each built in seven
+Two small programs from the malloc-stacks corpus, each built in eight
 variants, timed against each other. Results and their reading:
 [RESULTS.md](RESULTS.md).
 
@@ -10,7 +10,8 @@ variants, timed against each other. Results and their reading:
 | `std-mimalloc` | the same source with `mimalloc` as `#[global_allocator]` |
 | `std-control` | the original plus only the non-allocator source changes the ports made (see each file's header); a control, not part of the reading |
 | `ordstack` | the port onto ordstack 0.1 (`src/bin/ordstack.rs`) |
-| `ordstack-alloc` | the original with its containers on one ordstack frame through `FrameAlloc` (feature `allocator-api2`): allocator-api2 `Vec`/`Box` and hashbrown, otherwise unchanged (`src/bin/ordstack_alloc.rs`) |
+| `ordstack-alloc` | the original made generic over an allocator (`src/alloc_port.rs`: allocator-api2 `Vec`/`Box`, hashbrown), on one ordstack frame through `FrameAlloc` (feature `allocator-api2`) |
+| `alloc-control` | the same `src/alloc_port.rs` on the system allocator (`&Global`); a control for `ordstack-alloc`, so that only the allocator differs |
 | `bumpalo` | the port onto bumpalo 3 (`src/bin/bumpalo.rs`) |
 | `bumpalo-frozen` | the bumpalo port with the ordstack port's node layout, frozen handles (`treebuild/src/bin/bumpalo_frozen.rs`; for serde, the same source as `bumpalo`, which already has it) |
 

@@ -43,7 +43,12 @@ serde_json = "1"
 name = "serde_json_xform-std-control"
 path = "src/bin/std_control.rs"
 
-# The original with its containers on a `FrameAlloc` (allocator-api2).
+# The original generic over an allocator (src/alloc_port.rs), on a
+# `FrameAlloc`, and on the system allocator as its control.
 [[bin]]
 name = "serde_json_xform-ordstack-alloc"
 path = "src/bin/ordstack_alloc.rs"
+
+[[bin]]
+name = "serde_json_xform-alloc-control"
+path = "src/bin/alloc_control.rs"

@@ -40,7 +40,12 @@ mimalloc = { version = "0.1", default-features = false }
 name = "treebuild-std-control"
 path = "src/bin/std_control.rs"
 
-# The original with its containers on a `FrameAlloc` (allocator-api2).
+# The original generic over an allocator (src/alloc_port.rs), on a
+# `FrameAlloc`, and on the system allocator as its control.
 [[bin]]
 name = "treebuild-ordstack-alloc"
 path = "src/bin/ordstack_alloc.rs"
+
+[[bin]]
+name = "treebuild-alloc-control"
+path = "src/bin/alloc_control.rs"

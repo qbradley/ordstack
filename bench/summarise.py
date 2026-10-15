@@ -43,7 +43,7 @@ def main():
         src = ("`/usr/bin/time %%M`, %d runs" % len(c["rss_time_kb"]["std"])
                if "rss_time_kb" in c else "wait4 ru_maxrss, floored at harness RSS")
         print("| variant | wall median ms | wall IQR ms | wall min–max ms | vs std | "
-              "user+sys median ms | peak RSS median MB (%s) | RSS min–max MB | vs std | "
+              "user+sys median ms | peak RSS median MiB (%s) | RSS min–max MiB | vs std | "
               "minor faults |" % src)
         print("|---|---|---|---|---|---|---|---|---|---|")
         s = {}

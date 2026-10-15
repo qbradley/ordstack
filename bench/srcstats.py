@@ -15,10 +15,10 @@ import re
 import subprocess
 
 WORKLOADS = {
-    "treebuild": ["orig.rs", "bin/std_control.rs", "bin/ordstack.rs", "bin/ordstack_alloc.rs",
+    "treebuild": ["orig.rs", "bin/std_control.rs", "bin/ordstack.rs", "alloc_port.rs",
                   "bin/bumpalo.rs", "bin/bumpalo_frozen.rs"],
     "serde_json_xform": ["orig.rs", "bin/std_control.rs", "bin/ordstack.rs",
-                         "bin/ordstack_alloc.rs", "bin/bumpalo.rs"],
+                         "alloc_port.rs", "bin/bumpalo.rs"],
 }
 HEAD = re.compile(r"\b(struct|enum|fn|impl)\b")
 LT = re.compile(r"'(?:[a-z_][a-z0-9_]*)\b(?!')")

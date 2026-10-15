@@ -32,8 +32,8 @@ import sys
 import tempfile
 import time
 
-VARIANTS = ["std", "std-mimalloc", "std-control", "ordstack", "ordstack-alloc", "bumpalo",
-            "bumpalo-frozen"]
+VARIANTS = ["std", "std-mimalloc", "std-control", "ordstack", "ordstack-alloc", "alloc-control",
+            "bumpalo", "bumpalo-frozen"]
 
 
 def cases(work, outdir):
