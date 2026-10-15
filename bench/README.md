@@ -1,6 +1,6 @@
 # bench: is ordstack useful on two real workloads?
 
-Two small programs from the malloc-stacks corpus, each built in five
+Two small programs from the malloc-stacks corpus, each built in seven
 variants, timed against each other. Results and their reading:
 [RESULTS.md](RESULTS.md).
 
@@ -10,6 +10,7 @@ variants, timed against each other. Results and their reading:
 | `std-mimalloc` | the same source with `mimalloc` as `#[global_allocator]` |
 | `std-control` | the original plus only the non-allocator source changes the ports made (see each file's header); a control, not part of the reading |
 | `ordstack` | the port onto ordstack 0.1 (`src/bin/ordstack.rs`) |
+| `ordstack-alloc` | the original with its containers on one ordstack frame through `FrameAlloc` (feature `allocator-api2`): allocator-api2 `Vec`/`Box` and hashbrown, otherwise unchanged (`src/bin/ordstack_alloc.rs`) |
 | `bumpalo` | the port onto bumpalo 3 (`src/bin/bumpalo.rs`) |
 | `bumpalo-frozen` | the bumpalo port with the ordstack port's node layout, frozen handles (`treebuild/src/bin/bumpalo_frozen.rs`; for serde, the same source as `bumpalo`, which already has it) |
 
@@ -49,7 +50,7 @@ whose worst wall-time IQR exceeds 4% of the median is re-run (at most twice).
 Load is recorded before and during each case. It
 records wall time, `ru_maxrss`, user/sys time and minor faults per run, then
 `perf stat -e instructions:u,instructions,cycles` (`PERF_RUNS`, default 7, rotated; skipped if perf
-is unavailable), then one run of each port with `ORDSTACK_STATS=1` for
+is unavailable), then one run of each ordstack and bumpalo variant with `ORDSTACK_STATS=1` for
 arena statistics. `rss.py` then measures peak RSS under `/usr/bin/time -f %M`
 (5 rotated runs; the harness's own wait4 figure is floored at its ~20 MB),
 and
