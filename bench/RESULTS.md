@@ -436,3 +436,65 @@ and the instruction counts, the noise-robust measure, show no consistent
 gain. Within the crate the compiler can already inline these small
 non-generic functions, so the attribute buys little. Revisit on a quieter
 machine if a profile shows the calls.
+
+## Addendum 2026-10-15: `ordstack-alloc`, the original on `FrameAlloc`
+
+A seventh variant, `ordstack-alloc` (`src/bin/ordstack_alloc.rs`), runs the
+original program with its containers on one ordstack frame through
+`FrameAlloc` (feature `allocator-api2`, #4). It uses allocator-api2's
+`Vec`/`Box` and hashbrown's `HashMap` (with std's `RandomState`, so only the
+allocator changes), and a byte vector wherever the original has a `String`.
+It answers what the adapter gives code that moves over almost unchanged,
+against the `SVec`/`SMap` port (`ordstack`). The full run is in
+`results/alloc/` (31 rounds, all seven variants; the other six reproduce
+the reading above).
+
+**The machine was loaded during this run.** Every case went to three
+attempts, and no attempt met the 4% IQR rule (the best were 40–89%).
+`std-mimalloc` came out 38–212% *slower* than `std`, the load artefact
+already seen in "Load and re-runs". So wall times here are indicative
+only. Instruction counts and peak RSS do not depend on load, and the
+reading below rests on them.
+
+| input | wall vs std | instructions:u vs std | peak RSS vs std | stack high water |
+|---|---|---|---|---|
+| treebuild 7 | −9.3% (`ordstack` −66.2%) | −34.7% (`ordstack` −56.0%) | **+7.9%** (51.0 MB; `ordstack` 16.5) | 52.1 MB (`ordstack` 15.6) |
+| treebuild 8 | −8.4% (−65.0%) | −33.2% (−56.1%) | **+7.6%** (255.8 MB; 78.8) | 267.1 MB (81.2) |
+| serde_json_xform 120k | −12.1%, IQRs disjoint (−31.9%) | −11.2% (−19.6%) | **+41.6%** (81.8 MB; 33.8) | 86.6 MB |
+| serde_json_xform 480k | −16.2%, IQRs disjoint (−35.0%) | −7.9% (−16.6%) | **+42.7%** (323.2 MB; 128.2) | 346.3 MB |
+
+Reading: **the adapter saves time over `std` but uses more memory, and it
+falls well short of the native port on both.** It saves a third of the
+user instructions on treebuild and a tenth on serde, which is the cost of
+`malloc`/`free` per allocation removed. It does not meet the brief's rule
+on either workload: the wall-time gain stays under 10% on treebuild, and
+peak RSS rises on both.
+
+Why memory goes up:
+
+1. **Only the top block grows in place, and in this code it rarely is the
+   top.** A node's `children` vector grows after the node's subtree has
+   been built above it, so each growth copies and leaves the old block
+   behind. The same happens to the record array during parsing, and to the
+   seven `by_bucket` vectors, which grow round-robin. Nothing is reclaimed
+   until the adapter ends, so every abandoned block counts toward the peak.
+   The native port avoids this by building each growable on its own scratch
+   stack and freezing it.
+2. **No free before the end.** `std` reuses memory freed during the run.
+   For example, serde frees the parsed records while it transforms them,
+   and the adapter can only reclaim what is on top.
+3. **Container layout.** Every node carries a hashbrown table with the
+   minimum 4 buckets, and allocator-api2's `Vec` is 32 bytes (it stores a
+   `&FrameAlloc`) against `String`/`Vec`'s 24.
+
+Source cost: `treebuild` changes only in its types and the allocator
+argument. `serde_json_xform` still needs hand-written `DeserializeSeed`s,
+because `Deserialize` has no allocator parameter: 236 code lines against
+the original's 56, against `ordstack`'s 269 and `bumpalo`'s 235
+(`results/alloc/srcstats.md`).
+
+So `FrameAlloc` is a way to run allocator-generic code on a stack with
+less allocator work. It is not a substitute for the native containers
+when memory matters, and on a workload that grows non-top collections it
+costs memory against `std`. A quieter re-run would tighten the wall times.
+It would not change the instruction or RSS figures.
