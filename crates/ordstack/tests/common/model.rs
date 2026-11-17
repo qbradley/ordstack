@@ -250,7 +250,7 @@ fn level<'f, 's, 'c>(
             Next::Freeze => v.freeze(),
             Next::FreezeViaScratch => {
                 // Move the elements one by one, so the copy is reversed.
-                let mut tmp: SVec<'_, 's, Tracked<'c>> =
+                let tmp: SVec<'_, 's, Tracked<'c>> =
                     SVec::with_capacity_in(m.len() + spare, scratch);
                 while let Some(t) = v.pop() {
                     tmp.push(t);
@@ -304,7 +304,7 @@ impl<'f, 'c> Blocks<'f, 'c> {
         let t = cx.make();
         let bid = t.id;
         let b = f.alloc(t);
-        let mut w: SVec<'_, 'f, Tracked<'c>> = SVec::new_in(f);
+        let w: SVec<'_, 'f, Tracked<'c>> = SVec::new_in(f);
         let mut sm = Vec::new();
         for _ in 0..n {
             let t = cx.make();

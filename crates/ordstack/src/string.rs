@@ -38,7 +38,7 @@ impl<'v, 'f> SString<'v, 'f> {
     /// # Panics
     /// If the stack is exhausted or the capacity overflows.
     pub fn from_str_in(s: &str, frame: &'v mut Frame<'f>) -> SString<'v, 'f> {
-        let mut out = SString::with_capacity_in(s.len(), frame);
+        let out = SString::with_capacity_in(s.len(), frame);
         out.push_str(s);
         out
     }
@@ -47,7 +47,7 @@ impl<'v, 'f> SString<'v, 'f> {
     ///
     /// # Panics
     /// If the stack is exhausted or the capacity overflows.
-    pub fn push(&mut self, ch: char) {
+    pub fn push(&self, ch: char) {
         self.push_str(ch.encode_utf8(&mut [0; 4]));
     }
 
@@ -55,7 +55,7 @@ impl<'v, 'f> SString<'v, 'f> {
     ///
     /// # Panics
     /// If the stack is exhausted or the capacity overflows.
-    pub fn push_str(&mut self, s: &str) {
+    pub fn push_str(&self, s: &str) {
         self.vec.extend_from_slice(s.as_bytes());
     }
 
@@ -90,14 +90,14 @@ impl<'v, 'f> SString<'v, 'f> {
     ///
     /// # Panics
     /// If the stack is exhausted or the capacity overflows.
-    pub fn reserve(&mut self, additional: usize) {
+    pub fn reserve(&self, additional: usize) {
         self.vec.reserve(additional);
     }
 
     /// Makes room for at least `additional` more bytes. On failure the
     /// string is unchanged (the stack may still have reclaimed unreachable
     /// space above it).
-    pub fn try_reserve(&mut self, additional: usize) -> Result<(), AllocError> {
+    pub fn try_reserve(&self, additional: usize) -> Result<(), AllocError> {
         self.vec.try_reserve(additional)
     }
 

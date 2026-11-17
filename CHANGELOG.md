@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- `SVec` and `SString` append/reserve operations take shared access;
+  existing references and iterators remain valid across in-place growth
+
 ## 0.1.0 (2026-10-15)
 
 First release.

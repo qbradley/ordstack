@@ -5,7 +5,7 @@ error[E0505]: cannot move out of `st` because it is borrowed
   |         ------ binding `st` declared here
 4 |     let mut f = st.frame();
   |                 -- borrow of `st` occurs here
-5 |     let mut v: SVec<u32> = SVec::new_in(&mut f);
+5 |     let v: SVec<u32> = SVec::new_in(&mut f);
 6 |     drop(st); // ERROR
   |          ^^ move out of `st` occurs here
 7 |     v.push(1);

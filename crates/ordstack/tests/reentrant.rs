@@ -118,7 +118,7 @@ fn sslice_destructors_use_their_frame() {
         // Frozen through `SVec::freeze`, which raises `end` past the elements.
         let slice = {
             let mut g = frame.borrow_mut();
-            let mut v = SVec::new_in(&mut g);
+            let v = SVec::new_in(&mut g);
             for id in 0..4 {
                 v.push(R::new(id, mode, &frame, &log));
             }

@@ -1,0 +1,9 @@
+error[E0502]: cannot borrow `vector` as immutable because it is also borrowed as mutable
+ --> tests/ui/fail/27_mutable_element_blocks_push.rs:8:5
+  |
+7 |     let first = &mut vector[0];
+  |                      ------ mutable borrow occurs here
+8 |     vector.push(2); // ERROR
+  |     ^^^^^^ immutable borrow occurs here
+9 |     *first = 3;
+  |     ---------- mutable borrow later used here

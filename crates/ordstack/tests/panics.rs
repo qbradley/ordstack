@@ -54,7 +54,7 @@ fn vec_drop_continues_after_a_panicking_destructor() {
     fill(&mut v, 5, 2, &log);
     assert!(catch_unwind(AssertUnwindSafe(move || drop(v))).is_err());
     assert_eq!(*log.borrow(), [4, 3, 2, 1, 0]);
-    let mut w: SVec<u32> = SVec::new_in(&mut f);
+    let w: SVec<u32> = SVec::new_in(&mut f);
     w.push(1);
     assert_eq!(&*w, [1]);
 }
@@ -221,7 +221,7 @@ fn extend_panic_drops_pushed_elements_once_and_frees_the_frame() {
     // The half-built vector is dropped during unwinding: back to front.
     assert_eq!(*log.borrow(), [3, 2, 1, 0]);
     assert_eq!(f.end_offset(), end);
-    let mut v = SVec::new_in(&mut f);
+    let v = SVec::new_in(&mut f);
     v.push(p(20, &log));
     drop(v);
     assert_eq!(*log.borrow(), [3, 2, 1, 0, 20]);

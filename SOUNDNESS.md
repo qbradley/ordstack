@@ -108,12 +108,20 @@ bumped, and `SVec::try_grow_to` and `SMap::try_grow_to` set the capacity
 whose end is the new `top`. `FrameAlloc` (feature `allocator-api2`) raises
 `top` the same way when it allocates, or grows its top block in place.
 
-Except in `FrameAlloc::deallocate` and `FrameAlloc::shrink` (the last two
-rows below, argued in "The allocator adapter"), `reset_to(off)` is called
-only by a method that holds `&mut` (or ownership) of an object `X`, with `off` equal to `X`'s end as it is after the call. With
-`&mut X` held, no child of `X` is live, so `X` is the top of the chain and
-every other live object has its end at or below `X`'s. So T holds after the
-reset.
+Except in `FrameAlloc::deallocate`, `FrameAlloc::shrink` (the last two
+rows below, argued in "The allocator adapter"), and `SVec::try_grow_to`,
+`reset_to(off)` is called only by a method that holds `&mut` (or ownership)
+of an object `X`, with `off` equal to `X`'s end as it is after the call.
+With `&mut X` held, no child of `X` is live, so `X` is the top of the chain
+and every other live object has its end at or below `X`'s.
+
+`SVec::try_grow_to` takes `&self` because existing shared references can
+name only the initialized prefix. Any allocation above the vector's
+capacity end requires an exclusive borrow from `above` or `split_above`,
+which cannot coexist with this `&SVec` call. Thus `off` is an end below
+which no reachable child allocation exists. Shared element references are
+below `off` and refer to initialized elements that growth does not move or
+overwrite. So T holds after this reset as well.
 
 The call sites, all of them:
 
@@ -139,9 +147,12 @@ The call sites, all of them:
 ## Why reset on reacquire is sound
 
 In every row above except the two `FrameAlloc` rows (see "The allocator
-adapter") the caller holds `&mut` to `X`, or owns it. That means no
-borrow of `X` is live. By I, every pointer above `X`'s end needs such a
-borrow. So nothing above `X`'s end is reachable.
+adapter") and `SVec::try_grow_to`, the caller holds `&mut` to `X`, or owns
+it. That means no borrow of `X` is live. By I, every pointer above `X`'s end
+needs such a borrow. For `SVec::try_grow_to`, shared borrows of elements
+remain possible, but no pointer above the vector's capacity end can be
+reachable without an exclusive descendant borrow, as argued above. So
+nothing above `off` is reachable.
 
 In the `SVec::shrink_to_fit` and `SVec::freeze` rows `off` is below `X`'s old end, inside the vector's own
 buffer or at its frame's end. The extra range is `[off, old end)`. It holds
@@ -159,7 +170,7 @@ below the caller's.
 
 ## Why growth is in place
 
-`SVec::try_grow_to` holds `&mut self`, resets `top` to the vector's end, and
+`SVec::try_grow_to` holds `&self`, resets `top` to the vector's end, and
 then either bumps a fresh buffer (no buffer yet) or extends the existing one.
 After the reset the buffer ends exactly at `top`, so extending it overlaps
 nothing. `Stack::try_extend` checks this with `assert_eq!(old_end, top)` in
@@ -230,11 +241,14 @@ pins this behaviour.)
 ## Why frozen blocks stay valid for their brand
 
 By E a block branded by `F` lies below `F.end`. `top` can be lowered below
-`F.end` only by a method holding `&mut` to an object beneath `F`, or the
-region can be unmapped by dropping the stack. Every object beneath `F`, and
-the stack, is mutably borrowed for at least `F`'s brand. So the block is
-neither reclaimed nor unmapped while the brand is alive. `F` itself never
-resets below its own `end`.
+`F.end` only by an operation whose borrow excludes a live descendant `F`,
+or the region can be unmapped by dropping the stack. Most such operations
+hold `&mut` to an object beneath `F`. Shared `SVec` growth is the exception:
+if `F` is a live frame above the vector, its `above`/`split_above` loan
+mutably borrows the vector and therefore excludes the shared operation.
+Every object beneath `F`, and the stack, is mutably borrowed for at least
+`F`'s brand. So the block is neither reclaimed nor unmapped while the brand
+is alive. `F` itself never resets below its own `end`.
 
 E holds because `F.end` is written in three places. `try_alloc_array` sets
 it to the end of a block bumped at or above the old `end`. `SVec::freeze`
@@ -327,6 +341,14 @@ closure before anything is reserved; `alloc_slice_clone` has already raised
 `frame.end` past the whole block when the first `clone` runs, so even a
 panic leaves the frame consistent. `SMap` runs the hasher, `Hash` and `Eq` before it changes anything (`insert` and `entry` hash and probe first; `push` then runs no user code), and its growth rebuilds the index from stored hashes, so no user code runs while the index is being rebuilt.
 
+Shared `SVec` append and reserve run no user code between changing stack
+state, metadata, and the initialized prefix. The forwarded `Hash`, ordering,
+equality, and formatting operations use a snapshot slice and can run user
+code that append-reenters through a separate shared handle. Such re-entry
+can extend capacity and length, but the outer operation continues over its
+captured prefix. No existing element or captured prefix length changes
+during append.
+
 (b) Frozen handles (`SBox`, `SSlice`, `SStr`, `SFixedVec`, `SFrozenMap`, `IntoIter`; not
 the `IntoIter` inside a `VecIntoIter`, which is (a)). These do not borrow
 their frame, so an element destructor *can* use the frame that
@@ -402,7 +424,7 @@ frame's fields. `tests/panics.rs` exercises the destructor, `clone`,
 | `Frame<'f>` | – | covariant | – |
 | `SBox<'f, T>`, `SSlice<'f, T>`, `SFixedVec<'f, T>`, `IntoIter<'f, T>` | – | covariant | covariant |
 | `SStr<'f>` | – | covariant | – |
-| `SVec<'v, 'f, T>` | covariant | invariant | covariant |
+| `SVec<'v, 'f, T>` | covariant | invariant | invariant |
 | `VecIntoIter<'v, 'f, T>` | covariant | invariant | covariant |
 | `SString<'v, 'f>` | covariant | invariant | – |
 | `SMap<'v, 'f, K, V, S>` | covariant | invariant | covariant in `K`, `V`, `S` |
@@ -414,8 +436,13 @@ frame's fields. `tests/panics.rs` exercises the destructor, `clone`,
 `PhantomData<(&'f (), T)>` (`SFrozenMap` holds `PhantomData<(&'f (), Bucket<K, V>)>`). Shortening a brand is sound (the block is valid
 for the longer lifetime). `SVec` must be invariant in `'f` because it holds
 `&mut Frame<'f>` and `freeze` returns that brand; it gets this from the
-reference `&'v mut Frame<'f>`. Covariance in `T` is the same as `Vec<T>`'s
-and `Box<T>`'s: the handles own their values. `SMap` gets its invariance in `'f` the same way as `SVec`, from `&'v mut Frame<'f>`; it owns its entries (`PhantomData<Bucket<K, V>>`).
+reference `&'v mut Frame<'f>`. `SVec` is invariant in `T` because
+`ptr: Cell<NonNull<T>>` is used both to access elements through shared
+borrows and to accept `T` through shared append; otherwise a longer-lived
+vector could be reborrowed as one accepting shorter-lived values. Frozen
+handles remain covariant in `T` as ordinary owning handles. `SMap` gets its
+invariance in `'f` the same way as `SVec`, from `&'v mut Frame<'f>`; it owns
+its entries (`PhantomData<Bucket<K, V>>`).
 
 ### H5. Swapping frames
 
@@ -578,13 +605,13 @@ crates/ordstack/src/*.rs`), then the trait impls. "Resets" means
 | `SVec::new_in` | `&'v mut Frame<'f>` | no buffer; end is `frame.end`; holds the frame for `'v` |
 | `SVec::with_capacity_in` | `&'v mut Frame<'f>` | `new_in`, then `try_grow_to` |
 | `SVec::from_iter_in` | `&'v mut Frame<'f>` | `new_in`, then `extend` |
-| `SVec::reserve` | `&mut SVec` | `try_reserve`, panicking on error |
-| `SVec::try_reserve` | `&mut SVec` | grows only through `try_grow_to` (resets, then bumps or extends at `top`: B); on error no field changes |
+| `SVec::reserve` | `&SVec` | `try_reserve`, panicking on error |
+| `SVec::try_reserve` | `&SVec` | grows only through `try_grow_to` (resets, then bumps or extends at `top`: B); existing shared references cover only initialized elements below the growth range; on error no field changes |
 | `SVec::capacity` | `&SVec` | reads `cap` |
-| `SVec::push` | `&mut SVec` | `try_push`, panicking on error |
-| `SVec::try_push` | `&mut SVec` | grows only through `try_reserve`; writes slot `len < cap` |
+| `SVec::push` | `&SVec` | `try_push`, panicking on error |
+| `SVec::try_push` | `&SVec` | grows only through `try_reserve`; writes the uninitialized slot `len < cap`, then publishes `len + 1` without touching initialized elements |
 | `SVec::pop` | `&mut SVec` | lowers `len`, reads the slot out; never touches the stack |
-| `SVec::extend_from_slice` | `&mut SVec` | `reserve`, then one copy into spare capacity |
+| `SVec::extend_from_slice` | `&SVec` | `reserve`, then one copy into spare capacity beginning at the old `len`; a source alias may overlap only the initialized prefix, disjoint from the destination |
 | `SVec::insert` | `&mut SVec` | `reserve(1)`, then shifts inside the buffer |
 | `SVec::remove` | `&mut SVec` | shifts inside the buffer |
 | `SVec::swap_remove` | `&mut SVec` | moves one element inside the buffer |
@@ -604,13 +631,13 @@ crates/ordstack/src/*.rs`), then the trait impls. "Resets" means
 | `SString::new_in` | `&'v mut Frame<'f>` | `SVec::new_in` |
 | `SString::with_capacity_in` | `&'v mut Frame<'f>` | `SVec::with_capacity_in` |
 | `SString::from_str_in` | `&'v mut Frame<'f>` | `with_capacity_in`, then `push_str` |
-| `SString::push` | `&mut SString` | `push_str` of the encoded character |
-| `SString::push_str` | `&mut SString` | `SVec::extend_from_slice` of whole `str` bytes: stays UTF-8 |
+| `SString::push` | `&SString` | `push_str` of the encoded character |
+| `SString::push_str` | `&SString` | `SVec::extend_from_slice` of whole `str` bytes: stays UTF-8 |
 | `SString::pop` | `&mut SString` | truncates by the last character's length: stays UTF-8 |
 | `SString::truncate` | `&mut SString` | asserts a character boundary first, then `SVec::truncate` |
 | `SString::clear` | `&mut SString` | `SVec::clear` |
-| `SString::reserve` | `&mut SString` | `SVec::reserve` |
-| `SString::try_reserve` | `&mut SString` | `SVec::try_reserve` |
+| `SString::reserve` | `&SString` | `SVec::reserve` |
+| `SString::try_reserve` | `&SString` | `SVec::try_reserve` |
 | `SString::capacity` | `&SString` | `SVec::capacity` |
 | `SString::above` | `&mut SString` | `SVec::above` |
 | `SString::split_above` | `&mut SString` | `SVec::split_above`; `&mut str` keeps the bytes UTF-8 |
@@ -785,9 +812,9 @@ adapter"), and no `unsafe trait`.
 | 41 | `region.rs` | test `released_pages_stay_usable` | raw write at offset 8192 | inside the 64 KiB region |
 | 42 | `region.rs` | test `released_pages_stay_usable` | raw write at offset 8192 after `release_pages` | the page is still mapped after being discarded |
 | 43 | `stack.rs` | `Stack::ptr_at` | `base.add(off)` | `off <= len` is asserted on the line above in every build; the region is at most `isize::MAX` bytes |
-| 44 | `vec.rs` | `SVec::try_push` | `ptr.add(len).write(value)` | `len < cap` (growth succeeded or was not needed): inside the buffer (B), slot holds no value; dangling and aligned for a zero-size `T` |
+| 44 | `vec.rs` | `SVec::try_push` | `ptr.add(len).write(value)` | `len < cap` (growth succeeded or was not needed): inside the buffer (B), slot holds no value; dangling and aligned for a zero-size `T`; `len` is published after initialization |
 | 45 | `vec.rs` | `SVec::pop` | `ptr.add(len).read()` | B; `len` was lowered first |
-| 46 | `vec.rs` | `SVec::extend_from_slice` | `copy_nonoverlapping` into spare capacity | `reserve` made room for `src.len()` more; spare capacity is reachable only through `&mut self`, so `src` cannot overlap it; `T: Copy` |
+| 46 | `vec.rs` | `SVec::extend_from_slice` | `copy_nonoverlapping` into spare capacity | `reserve` made room for `src.len()` more; destination starts at the old `len`, so any source alias into this vector ends at or before `len`; `T: Copy` |
 | 47 | `vec.rs` | `SVec::insert` | shift the tail up by one, write the slot | `index <= len` asserted; `reserve(1)` gave capacity `len + 1`; B |
 | 48 | `vec.rs` | `SVec::remove` | read the slot, shift the tail down | `index < len` asserted; B; `len` is lowered before returning |
 | 49 | `vec.rs` | `SVec::swap_remove` | read the slot, move the last element into it | `index < len` asserted; B |
@@ -846,7 +873,7 @@ is meant for a large machine.
 - The test suite on stable, debug and release, with the default features
   and with `--all-features`, including the doctests of the crate
   documentation and of `README.md`.
-- **Compile-fail tests.** 24 cases in `tests/ui/fail`, one per rejection the
+- **Compile-fail tests.** 28 cases in `tests/ui/fail`, one per rejection the
   guarantee depends on, each with a compiling twin in `tests/ui/pass` that
   differs only in the offending line. The twins are generated by
   `scripts/gen-ui-pass.sh`; `check.sh` regenerates them and fails if they

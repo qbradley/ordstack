@@ -71,7 +71,7 @@ fn freeze_and_descend_and_freeze_into() {
     {
         let (text, mut above) = s.split_above();
         text.make_ascii_uppercase();
-        let mut t = SString::new_in(&mut above);
+        let t = SString::new_in(&mut above);
         t.push_str("scratch");
     }
     {
@@ -87,4 +87,22 @@ fn freeze_and_descend_and_freeze_into() {
     let copy = s.freeze_into(&mut bf);
     assert_eq!(copy.as_str(), "ABCdef");
     assert_eq!(bf.end_offset(), 6);
+}
+
+#[test]
+fn shared_text_borrow_survives_append_and_self_append() {
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let s = SString::with_capacity_in(1, &mut f);
+    s.push_str("a");
+    let first = &s[..1];
+    let prefix = &s[..];
+
+    s.reserve(8);
+    s.push_str(prefix);
+    s.push('b');
+
+    assert_eq!(first, "a");
+    assert_eq!(prefix, "a");
+    assert_eq!(&*s, "aab");
 }

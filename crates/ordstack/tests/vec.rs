@@ -2,7 +2,8 @@
 #![allow(clippy::drop_non_drop, clippy::forget_non_drop)]
 
 use ordstack::{AllocErrorKind, Frame, SSlice, SVec, Stack};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -37,6 +38,135 @@ fn grows_in_place() {
     drop(f);
     assert_eq!(st.extent(), 2048 * 8);
     assert_eq!(st.high_water(), 2048 * 8);
+}
+
+#[test]
+fn shared_references_survive_reserve_and_push_across_growth() {
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let v = SVec::with_capacity_in(1, &mut f);
+    v.push(10);
+    let first = &v[0];
+    let prefix = &v[..];
+    let mut iter = v.iter();
+    let original = v.as_ptr();
+
+    v.reserve(8);
+    v.push(20);
+    v.push(30);
+    v.extend_from_slice(prefix);
+
+    assert_eq!(*first, 10);
+    assert_eq!(prefix, &[10]);
+    assert_eq!(iter.next(), Some(&10));
+    assert_eq!(iter.next(), None);
+    assert_eq!(v.as_ptr(), original);
+    assert_eq!(&*v, &[10, 20, 30, 10]);
+}
+
+#[test]
+fn an_empty_snapshot_survives_first_allocation() {
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let v: SVec<u32> = SVec::new_in(&mut f);
+    let empty = &*v;
+    let mut iter = v.iter();
+
+    v.try_push(1).unwrap();
+
+    assert!(empty.is_empty());
+    assert_eq!(iter.next(), None);
+    assert_eq!(&*v, &[1]);
+}
+
+#[test]
+fn shared_zst_references_survive_append() {
+    let mut st = Stack::with_reserve(0);
+    let mut f = st.frame();
+    let v: SVec<()> = SVec::new_in(&mut f);
+    v.push(());
+    let first = &v[0];
+    v.push(());
+
+    assert_eq!(core::ptr::from_ref(first), v.as_ptr());
+    assert_eq!(v.len(), 2);
+}
+
+#[test]
+fn hashing_can_reenter_shared_append_without_extending_the_outer_slice() {
+    struct Appending<'v, 'f> {
+        value: u32,
+        target: Option<std::rc::Weak<SVec<'v, 'f, Appending<'v, 'f>>>>,
+    }
+
+    impl Hash for Appending<'_, '_> {
+        fn hash<H: Hasher>(&self, state: &mut H) {
+            self.value.hash(state);
+            if let Some(target) = &self.target {
+                if let Some(vector) = target.upgrade() {
+                    vector.push(Appending {
+                        value: 2,
+                        target: None,
+                    });
+                }
+            }
+        }
+    }
+
+    let mut st = Stack::with_reserve(1 << 16);
+    let mut f = st.frame();
+    let vector = Rc::new(SVec::with_capacity_in(1, &mut f));
+    vector.push(Appending {
+        value: 1,
+        target: Some(Rc::downgrade(&vector)),
+    });
+    let original = vector.as_ptr();
+
+    let mut hasher = std::hash::DefaultHasher::new();
+    vector.hash(&mut hasher);
+    let _ = hasher.finish();
+
+    assert_eq!(vector.as_ptr(), original);
+    assert_eq!(vector.len(), 2);
+    assert_eq!(vector[0].value, 1);
+    assert_eq!(vector[1].value, 2);
+}
+
+#[test]
+fn rejected_value_destructor_reenters_consistent_shared_append() {
+    struct Reenter<'v, 'f> {
+        target: Option<std::rc::Weak<SVec<'v, 'f, Reenter<'v, 'f>>>>,
+        drops: Rc<Cell<usize>>,
+    }
+
+    impl Drop for Reenter<'_, '_> {
+        fn drop(&mut self) {
+            self.drops.set(self.drops.get() + 1);
+            let Some(target) = &self.target else {
+                return;
+            };
+            let vector = target.upgrade().unwrap();
+            assert_eq!((vector.len(), vector.capacity()), (0, 0));
+            let result = vector.try_push(Reenter {
+                target: None,
+                drops: self.drops.clone(),
+            });
+            assert!(result.is_err());
+        }
+    }
+
+    let drops = Rc::new(Cell::new(0));
+    let mut st = Stack::with_reserve(0);
+    let mut f = st.frame();
+    let vector = Rc::new(SVec::new_in(&mut f));
+    let value = Reenter {
+        target: Some(Rc::downgrade(&vector)),
+        drops: drops.clone(),
+    };
+
+    assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| vector.push(value))).is_err());
+    assert_eq!((vector.len(), vector.capacity()), (0, 0));
+    assert_eq!(drops.get(), 2);
 }
 
 #[test]
@@ -194,6 +324,7 @@ fn failed_growth_changes_nothing() {
     let mut f = st.frame();
     let mut v: SVec<u64> = SVec::with_capacity_in(512, &mut f);
     v.extend(0..512);
+    let first = &v[0];
     let (e_val, e) = v.try_push(77).unwrap_err();
     assert_eq!((e_val, e.kind()), (77, AllocErrorKind::Exhausted));
     assert_eq!(
@@ -205,6 +336,7 @@ fn failed_growth_changes_nothing() {
         AllocErrorKind::CapacityOverflow
     );
     assert_eq!((v.len(), v.capacity()), (512, 512));
+    assert_eq!(*first, 0);
     assert_eq!(v.pop(), Some(511));
     v.push(1);
     assert_eq!(v.len(), 512);
@@ -217,7 +349,7 @@ fn doubling_falls_back_to_the_exact_size() {
         return;
     }
     let mut f = st.frame();
-    let mut v: SVec<u8> = SVec::with_capacity_in(3000, &mut f);
+    let v: SVec<u8> = SVec::with_capacity_in(3000, &mut f);
     v.extend_from_slice(&[0; 3000]);
     v.push(1); // doubling to 6000 does not fit; 3001 does
     assert_eq!(v.capacity(), 3001);
@@ -228,7 +360,7 @@ fn doubling_falls_back_to_the_exact_size() {
 fn push_panics_when_exhausted() {
     let mut st = Stack::with_reserve(0);
     let mut f = st.frame();
-    let mut v: SVec<u8> = SVec::new_in(&mut f);
+    let v: SVec<u8> = SVec::new_in(&mut f);
     v.push(1);
 }
 
@@ -246,7 +378,7 @@ fn overaligned_after_odd_block() {
         assert!(v.freeze().is_empty());
     }
     assert_eq!(f.end_offset(), 1, "an empty freeze keeps no padding");
-    let mut v: SVec<A> = SVec::new_in(&mut f);
+    let v: SVec<A> = SVec::new_in(&mut f);
     v.push(A(1));
     v.push(A(2));
     assert_eq!(v.as_ptr() as usize % 64, 0);
@@ -461,7 +593,7 @@ fn offset_plus_size_overflow_is_capacity_overflow() {
     let mut st = Stack::with_reserve(4096);
     let mut f = st.frame();
     let _keep = f.alloc(1u64);
-    let mut v = SVec::<u8>::new_in(&mut f);
+    let v = SVec::<u8>::new_in(&mut f);
     assert_eq!(
         v.try_reserve(usize::MAX - 4).unwrap_err().kind(),
         AllocErrorKind::CapacityOverflow
@@ -479,7 +611,7 @@ fn documented_error_kinds_capacity_and_reclamation() {
     let mut st = Stack::with_reserve(0);
     let mut f = st.frame();
     {
-        let mut v = SVec::<u8>::new_in(&mut f);
+        let v = SVec::<u8>::new_in(&mut f);
         assert_eq!(
             v.try_reserve(isize::MAX as usize + 1).unwrap_err().kind(),
             AllocErrorKind::Exhausted
@@ -490,7 +622,7 @@ fn documented_error_kinds_capacity_and_reclamation() {
         );
     }
     {
-        let mut v = SVec::<u64>::new_in(&mut f);
+        let v = SVec::<u64>::new_in(&mut f);
         assert_eq!(
             v.try_reserve(usize::MAX / 8 + 1).unwrap_err().kind(),
             AllocErrorKind::CapacityOverflow

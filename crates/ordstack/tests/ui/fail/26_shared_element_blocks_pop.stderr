@@ -1,0 +1,9 @@
+error[E0502]: cannot borrow `vector` as mutable because it is also borrowed as immutable
+ --> tests/ui/fail/26_shared_element_blocks_pop.rs:8:5
+  |
+7 |     let first = &vector[0];
+  |                  ------ immutable borrow occurs here
+8 |     vector.pop(); // ERROR
+  |     ^^^^^^^^^^^^ mutable borrow occurs here
+9 |     assert_eq!(*first, 1);
+  |     --------------------- immutable borrow later used here

@@ -1,0 +1,9 @@
+error[E0502]: cannot borrow `lower` as immutable because it is also borrowed as mutable
+ --> tests/ui/fail/28_reserve_while_above.rs:8:5
+  |
+7 |     let above = lower.above();
+  |                 ----- mutable borrow occurs here
+8 |     lower.reserve(1); // ERROR
+  |     ^^^^^ immutable borrow occurs here
+9 |     assert_eq!(above.end_offset(), 0);
+  |                ----- mutable borrow later used here

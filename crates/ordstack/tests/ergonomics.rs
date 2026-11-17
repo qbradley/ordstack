@@ -217,7 +217,7 @@ fn svec_by_value_drops_the_rest_back_to_front() {
     let l = log();
     let mut st = Stack::with_reserve(1 << 16);
     let mut f = st.frame();
-    let mut v = SVec::new_in(&mut f);
+    let v = SVec::new_in(&mut f);
     for i in 0..5 {
         v.push(D(i, l.clone()));
     }

@@ -28,6 +28,11 @@ tokens.push(";"); // top again
 assert_eq!(tokens.len(), 5);
 ```
 
+`SVec` append and reserve operations take shared access. References and
+iterators into its initialized prefix remain usable across growth because
+native vector growth extends the same buffer. Operations that move, remove
+or mutate existing elements still require exclusive access.
+
 `SMap` is a hash map that grows on a frame the same way, keeps insertion
 order, and freezes into an `SFrozenMap` in place. The crate documentation's
 *Patterns* section shows several stacks, children on the same stack,

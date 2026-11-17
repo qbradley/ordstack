@@ -46,16 +46,35 @@
 //! assert_eq!(tokens.len(), 5);
 //! ```
 //!
+//! Appending and reserving a growable vector use shared access. Existing
+//! references and iterators keep their addresses and snapshot lengths even
+//! when the append grows the block:
+//!
+//! ```
+//! use ordstack::{SVec, Stack};
+//!
+//! let mut st = Stack::with_reserve(1 << 16);
+//! let mut f = st.frame();
+//! let v = SVec::with_capacity_in(1, &mut f);
+//! v.push(1u32);
+//! let first = &v[0];
+//! let prefix = &v[..];
+//! v.reserve(8);
+//! v.push(2);
+//! assert_eq!(*first, 1);
+//! assert_eq!(prefix, &[1][..]);
+//! ```
+//!
 //! # Freeze and descend
 //!
 //! New space above an object is obtained only by mutably borrowing it:
 //! [`Stack::frame`], [`Frame::sub`], [`SVec::above`], [`SVec::split_above`]
 //! (and the same two methods on [`SString`]). While the returned [`Frame`],
 //! or anything allocated through it, is alive, the object beneath cannot grow
-//! or allocate. Holding `&mut` to a growable container is the proof that it
-//! is the top block.
+//! or allocate. The exclusive borrow used to create that frame is the proof
+//! that it is the top block.
 //!
-//! ```compile_fail,E0499
+//! ```compile_fail,E0502
 //! use ordstack::{SVec, Stack};
 //! let mut st = Stack::new();
 //! let mut f = st.frame();
