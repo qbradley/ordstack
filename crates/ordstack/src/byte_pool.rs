@@ -1,7 +1,7 @@
 //! Byte storage with reusable contiguous runs.
 
 use crate::bplus::Summary;
-use crate::{AllocError, AllocErrorKind, Frame, SBPlusTree, SVec};
+use crate::{AllocError, AllocErrorKind, Frame, SBPlusTree, SSlice, SVec};
 
 const OVERFLOW: AllocError = AllocError::new(AllocErrorKind::CapacityOverflow);
 
@@ -218,6 +218,23 @@ impl Bytes for SVec<'_, '_, u8> {
     }
 }
 
+impl Bytes for SSlice<'_, u8> {
+    fn limit(&self) -> usize {
+        self.len()
+    }
+
+    fn reserve_end(&mut self, end: usize) -> Result<(), AllocError> {
+        if end > self.len() {
+            return Err(AllocError::new(AllocErrorKind::Exhausted));
+        }
+        Ok(())
+    }
+
+    fn initialize_to(&mut self, _: usize) -> &mut [u8] {
+        self
+    }
+}
+
 /// A growable byte pool on two separate stacks.
 ///
 /// One frame holds the byte buffer and the other holds the free-span tree. Both
@@ -295,6 +312,130 @@ impl<'v, 'f, 'm, 'g> SBytePool<'v, 'f, 'm, 'g> {
     /// Resizes a run, preserving the common prefix and zeroing added bytes.
     ///
     /// On success, use the returned handle. Returns `Ok(None)` if the run
+    /// overlaps free space. On error the original run and handle stay valid.
+    ///
+    /// # Panics
+    /// If `len` is zero.
+    pub fn try_resize(
+        &mut self,
+        handle: ByteRun,
+        len: usize,
+    ) -> Result<Option<ByteRun>, AllocError> {
+        self.spans.resize(&mut self.bytes, handle, len)
+    }
+
+    /// Fixes the byte capacity and releases the byte frame.
+    ///
+    /// All live runs keep their addresses and handles. This method
+    /// initializes any spare byte capacity before freezing the buffer.
+    /// The fixed pool still borrows the metadata frame so the free-span tree
+    /// can grow.
+    ///
+    /// ```
+    /// use ordstack::{SBytePool, Stack};
+    ///
+    /// let mut data = Stack::with_reserve(4096);
+    /// let mut metadata = Stack::with_reserve(4096);
+    /// let (mut bytes, mut runs) = (data.frame(), metadata.frame());
+    /// let mut pool = SBytePool::new_in(&mut bytes, &mut runs);
+    /// let run = pool.try_alloc(3).unwrap();
+    /// pool.get_mut(run).unwrap().copy_from_slice(b"abc");
+    /// let pool = pool.freeze();
+    /// let other = bytes.alloc(42);
+    /// assert_eq!(pool.get(run), Some(&b"abc"[..]));
+    /// assert_eq!(*other, 42);
+    /// ```
+    ///
+    /// ```compile_fail,E0499
+    /// use ordstack::{SBytePool, Stack};
+    ///
+    /// let mut data = Stack::with_reserve(4096);
+    /// let mut metadata = Stack::with_reserve(4096);
+    /// let (mut bytes, mut runs) = (data.frame(), metadata.frame());
+    /// let mut pool = SBytePool::new_in(&mut bytes, &mut runs).freeze();
+    /// let _other = runs.alloc(42); // The fixed pool still borrows `runs`.
+    /// let _ = pool.try_alloc(1);
+    /// ```
+    pub fn freeze(mut self) -> SFixedBytePool<'f, 'm, 'g> {
+        let capacity = self.bytes.capacity();
+        self.bytes.initialize_to(capacity);
+        SFixedBytePool {
+            bytes: self.bytes.freeze(),
+            spans: self.spans,
+        }
+    }
+}
+
+/// A fixed-capacity byte pool with a growable free-span tree.
+///
+/// The byte frame stays available for other allocations. The pool holds an
+/// exclusive borrow of the metadata frame. Run handles and free space behave
+/// as in [`SBytePool`], but the byte buffer cannot grow.
+pub struct SFixedBytePool<'f, 'm, 'g> {
+    bytes: SSlice<'f, u8>,
+    spans: FreeSpans<'m, 'g>,
+}
+
+impl<'f, 'm, 'g> SFixedBytePool<'f, 'm, 'g> {
+    /// Reserves a fixed block of `capacity` bytes on `bytes`.
+    ///
+    /// # Panics
+    /// If the byte frame cannot fit the block.
+    pub fn with_capacity_in(
+        capacity: usize,
+        bytes: &mut Frame<'f>,
+        metadata: &'m mut Frame<'g>,
+    ) -> Self {
+        Self {
+            bytes: bytes.alloc_slice_from_iter(core::iter::repeat_n(0, capacity)),
+            spans: FreeSpans::new(metadata),
+        }
+    }
+
+    /// Returns the total byte capacity, including occupied bytes.
+    pub fn capacity(&self) -> usize {
+        self.bytes.len()
+    }
+
+    /// Allocates a zeroed run. Returns an error if no run fits.
+    ///
+    /// # Panics
+    /// If `len` is zero.
+    pub fn try_alloc(&mut self, len: usize) -> Result<ByteRun, AllocError> {
+        self.spans.alloc(&mut self.bytes, len)
+    }
+
+    /// Borrows the indicated bytes if they are within the buffer.
+    /// The pool does not track whether the run is live.
+    pub fn get(&self, handle: ByteRun) -> Option<&[u8]> {
+        self.bytes.get(handle.start..handle.end)
+    }
+
+    /// Mutably borrows the indicated bytes if they are within the buffer.
+    /// The pool does not track whether the run is live.
+    pub fn get_mut(&mut self, handle: ByteRun) -> Option<&mut [u8]> {
+        self.bytes.get_mut(handle.start..handle.end)
+    }
+
+    /// Frees a whole run. Returns `false` if it overlaps free space.
+    ///
+    /// # Panics
+    /// If the metadata frame cannot record the free span.
+    pub fn free(&mut self, handle: ByteRun) -> bool {
+        self.try_free(handle)
+            .expect("ordstack: cannot record free byte span")
+    }
+
+    /// Frees a whole run or returns an error if the metadata frame is full.
+    /// On error the run remains live. Returns `Ok(false)` for an overlap
+    /// with free space, but does not detect reuse of stale handles.
+    pub fn try_free(&mut self, handle: ByteRun) -> Result<bool, AllocError> {
+        self.spans.try_free(handle)
+    }
+
+    /// Resizes a run within the fixed byte capacity.
+    ///
+    /// Use the returned handle on success. Returns `Ok(None)` if the run
     /// overlaps free space. On error the original run and handle stay valid.
     ///
     /// # Panics

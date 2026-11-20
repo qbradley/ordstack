@@ -331,7 +331,7 @@ mod vec;
 pub use alloc::FrameAlloc;
 pub use boxed::SBox;
 pub use bplus::SBPlusTree;
-pub use byte_pool::{ByteRun, SBytePool};
+pub use byte_pool::{ByteRun, SBytePool, SFixedBytePool};
 pub use error::{AllocError, AllocErrorKind};
 pub use fixed::SFixedVec;
 pub use frame::Frame;
