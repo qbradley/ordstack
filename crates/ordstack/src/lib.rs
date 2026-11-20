@@ -313,6 +313,7 @@ compile_error!(
 #[cfg(feature = "allocator-api2")]
 mod alloc;
 mod boxed;
+mod bplus;
 mod debug;
 mod error;
 mod fixed;
@@ -328,6 +329,7 @@ mod vec;
 #[cfg(feature = "allocator-api2")]
 pub use alloc::FrameAlloc;
 pub use boxed::SBox;
+pub use bplus::SBPlusTree;
 pub use error::{AllocError, AllocErrorKind};
 pub use fixed::SFixedVec;
 pub use frame::Frame;
