@@ -314,6 +314,7 @@ compile_error!(
 mod alloc;
 mod boxed;
 mod bplus;
+mod byte_pool;
 mod debug;
 mod error;
 mod fixed;
@@ -330,6 +331,7 @@ mod vec;
 pub use alloc::FrameAlloc;
 pub use boxed::SBox;
 pub use bplus::SBPlusTree;
+pub use byte_pool::{ByteRun, SBytePool};
 pub use error::{AllocError, AllocErrorKind};
 pub use fixed::SFixedVec;
 pub use frame::Frame;

@@ -144,18 +144,34 @@ impl<K: Copy, V: Copy, const N: usize> Leaf<K, V, N> {
 }
 
 #[derive(Clone, Copy)]
-struct Edge<K> {
+struct Edge<K, A = ()> {
     max: K,
     child: usize,
+    summary: A,
 }
 
-enum Node<K, V, const L: usize, const B: usize> {
+// A summary combines consecutive entries in key order.
+pub trait Summary<K, V>: Copy {
+    const ENABLED: bool = true;
+    const EMPTY: Self;
+    fn entry(key: K, value: V) -> Self;
+    fn join(self, right: Self) -> Self;
+}
+
+impl<K, V> Summary<K, V> for () {
+    const ENABLED: bool = false;
+    const EMPTY: Self = ();
+    fn entry(_: K, _: V) {}
+    fn join(self, _: Self) {}
+}
+
+enum Node<K, V, const L: usize, const B: usize, A = ()> {
     Leaf(Leaf<K, V, L>, Option<usize>),
-    Branch(Page<Edge<K>, B>),
+    Branch(Page<Edge<K, A>, B>),
     Free(Option<usize>),
 }
 
-impl<K: Ord + Copy, V: Copy, const L: usize, const B: usize> Node<K, V, L, B> {
+impl<K: Ord + Copy, V: Copy, const L: usize, const B: usize, A: Copy> Node<K, V, L, B, A> {
     fn len(&self) -> usize {
         match self {
             Self::Leaf(page, _) => page.len,
@@ -176,12 +192,12 @@ impl<K: Ord + Copy, V: Copy, const L: usize, const B: usize> Node<K, V, L, B> {
         self.len()
             >= match self {
                 Self::Leaf(..) => Leaf::<K, V, L>::MIN,
-                Self::Branch(_) => Page::<Edge<K>, B>::MIN,
+                Self::Branch(_) => Page::<Edge<K, A>, B>::MIN,
                 Self::Free(_) => unreachable!(),
             }
     }
 
-    fn route(page: &Page<Edge<K>, B>, key: K) -> usize {
+    fn route(page: &Page<Edge<K, A>, B>, key: K) -> usize {
         let last = page.len - 1;
         if last == 0 || key > page.at(last - 1).max {
             return last;
@@ -200,8 +216,8 @@ impl<K: Ord + Copy, V: Copy, const L: usize, const B: usize> Node<K, V, L, B> {
 ///
 /// `L` and `B` set the maximum number of entries in a leaf and a branch,
 /// respectively. Both default to eight.
-pub struct SBPlusTree<'v, 'f, K, V, const L: usize = 8, const B: usize = 8> {
-    nodes: SVec<'v, 'f, Node<K, V, L, B>>,
+pub struct SBPlusTree<'v, 'f, K, V, const L: usize = 8, const B: usize = 8, A = ()> {
+    nodes: SVec<'v, 'f, Node<K, V, L, B, A>>,
     root: Option<usize>,
     free: Option<usize>,
     free_count: usize,
@@ -215,8 +231,8 @@ impl<'v, 'f, K: Ord + Copy, V: Copy> SBPlusTree<'v, 'f, K, V> {
     }
 }
 
-impl<'v, 'f, K: Ord + Copy, V: Copy, const L: usize, const B: usize>
-    SBPlusTree<'v, 'f, K, V, L, B>
+impl<'v, 'f, K: Ord + Copy, V: Copy, const L: usize, const B: usize, A: Summary<K, V>>
+    SBPlusTree<'v, 'f, K, V, L, B, A>
 {
     /// Returns the largest branch fanout that fits within the leaf payload.
     ///
@@ -224,10 +240,10 @@ impl<'v, 'f, K: Ord + Copy, V: Copy, const L: usize, const B: usize>
     /// Use this in a const argument for `B` once the key and value types are known.
     pub const fn balanced_branch_fanout() -> usize {
         let leaf = size_of::<(Leaf<K, V, L>, Option<usize>)>();
-        let align = align_of::<Page<Edge<K>, 0>>();
+        let align = align_of::<Page<Edge<K, A>, 0>>();
         let budget = leaf / align * align;
-        let edges =
-            budget.saturating_sub(size_of::<Page<Edge<K>, 0>>()) / size_of::<Option<Edge<K>>>();
+        let edges = budget.saturating_sub(size_of::<Page<Edge<K, A>, 0>>())
+            / size_of::<Option<Edge<K, A>>>();
         if edges < 3 { 3 } else { edges }
     }
 
@@ -261,7 +277,7 @@ impl<'v, 'f, K: Ord + Copy, V: Copy, const L: usize, const B: usize>
 
     fn leaf_for(&self, mut node: usize, key: K) -> usize {
         while let Node::Branch(page) = &self.nodes[node] {
-            node = page.at(Node::<K, V, L, B>::route(page, key)).child;
+            node = page.at(Node::<K, V, L, B, A>::route(page, key)).child;
         }
         node
     }
@@ -286,7 +302,7 @@ impl<'v, 'f, K: Ord + Copy, V: Copy, const L: usize, const B: usize>
         None
     }
 
-    fn add_node(&mut self, node: Node<K, V, L, B>) -> usize {
+    fn add_node(&mut self, node: Node<K, V, L, B, A>) -> usize {
         if let Some(i) = self.free {
             let Node::Free(next) = self.nodes[i] else {
                 unreachable!()
@@ -308,10 +324,30 @@ impl<'v, 'f, K: Ord + Copy, V: Copy, const L: usize, const B: usize>
         self.free_count += 1;
     }
 
-    fn edge(&self, child: usize) -> Edge<K> {
+    fn edge(&self, child: usize) -> Edge<K, A> {
+        let node = &self.nodes[child];
+        let summary = if A::ENABLED {
+            match node {
+                Node::Leaf(page, _) => (0..page.len)
+                    .map(|i| {
+                        let (key, value) = page.at(i);
+                        A::entry(key, value)
+                    })
+                    .reduce(A::join)
+                    .unwrap(),
+                Node::Branch(page) => (0..page.len)
+                    .map(|i| page.at(i).summary)
+                    .reduce(A::join)
+                    .unwrap(),
+                Node::Free(_) => unreachable!(),
+            }
+        } else {
+            A::EMPTY
+        };
         Edge {
-            max: self.nodes[child].max(),
+            max: node.max(),
             child,
+            summary,
         }
     }
 
@@ -375,7 +411,7 @@ impl<'v, 'f, K: Ord + Copy, V: Copy, const L: usize, const B: usize>
                 Node::Leaf(right, next)
             }
             Node::Branch(page) => {
-                let i = Node::<K, V, L, B>::route(page, key);
+                let i = Node::<K, V, L, B, A>::route(page, key);
                 let edge = page.at(i);
                 let raises_max = key > edge.max;
                 let splits = if page.len == B {
@@ -396,14 +432,16 @@ impl<'v, 'f, K: Ord + Copy, V: Copy, const L: usize, const B: usize>
                     };
                     Node::Branch(right)
                 } else {
-                    if raises_max {
+                    if A::ENABLED || raises_max {
+                        let updated = if A::ENABLED {
+                            self.edge(edge.child)
+                        } else {
+                            Edge { max: key, ..edge }
+                        };
                         let Node::Branch(page) = &mut self.nodes[node] else {
                             unreachable!()
                         };
-                        page.entries[i] = Some(Edge {
-                            max: key,
-                            child: edge.child,
-                        });
+                        page.entries[i] = Some(updated);
                     }
                     return Ok((old, None));
                 }
@@ -445,7 +483,7 @@ impl<'v, 'f, K: Ord + Copy, V: Copy, const L: usize, const B: usize>
                 return Some(page.remove(i));
             }
             Node::Branch(page) => {
-                let i = Node::<K, V, L, B>::route(page, key);
+                let i = Node::<K, V, L, B, A>::route(page, key);
                 (i, page.at(i))
             }
             Node::Free(_) => unreachable!(),
@@ -454,7 +492,7 @@ impl<'v, 'f, K: Ord + Copy, V: Copy, const L: usize, const B: usize>
         let changes_max = key == edge.max;
         let value = self.remove_from(child, key)?;
         if self.nodes[child].has_minimum_entries() {
-            if changes_max {
+            if A::ENABLED || changes_max {
                 let edge = self.edge(child);
                 let Node::Branch(page) = &mut self.nodes[node] else {
                     unreachable!()
@@ -523,6 +561,66 @@ impl<'v, 'f, K: Ord + Copy, V: Copy, const L: usize, const B: usize>
             self.recycle(right);
         }
         merged
+    }
+
+    // The predicate must accept a subtree exactly when it contains a match.
+    pub(crate) fn search_summaries(&self, matches: impl Fn(A) -> bool) -> Option<(K, V)> {
+        let mut node = self.root?;
+        loop {
+            match &self.nodes[node] {
+                Node::Branch(page) => {
+                    let edge = (0..page.len)
+                        .map(|i| page.at(i))
+                        .find(|e| matches(e.summary))?;
+                    node = edge.child;
+                }
+                Node::Leaf(page, _) => {
+                    return (0..page.len)
+                        .map(|i| page.at(i))
+                        .find(|&(key, value)| matches(A::entry(key, value)));
+                }
+                Node::Free(_) => unreachable!(),
+            }
+        }
+    }
+
+    // Returns the entries immediately before and at or after the search key.
+    pub(crate) fn around(&self, key: K) -> [Option<(K, V)>; 2] {
+        let Some(mut node) = self.root else {
+            return [None, None];
+        };
+        let mut before = None;
+        while let Node::Branch(page) = &self.nodes[node] {
+            let i = Node::<K, V, L, B, A>::route(page, key);
+            if i > 0 {
+                before = Some(page.at(i - 1).child);
+            }
+            node = page.at(i).child;
+        }
+        let Node::Leaf(page, next) = &self.nodes[node] else {
+            unreachable!()
+        };
+        let i = page.keys[..page.len]
+            .iter()
+            .position(|stored| *stored >= key)
+            .unwrap_or(page.len);
+        let prev = if i > 0 {
+            Some(page.at(i - 1))
+        } else {
+            before.map(|mut node| {
+                while let Node::Branch(page) = &self.nodes[node] {
+                    node = page.at(page.len - 1).child;
+                }
+                let leaf = self.leaf(node);
+                leaf.at(leaf.len - 1)
+            })
+        };
+        let next = if i < page.len {
+            Some(page.at(i))
+        } else {
+            next.map(|node| self.leaf(node).at(0))
+        };
+        [prev, next]
     }
 
     /// Iterates over entries in ascending key order.
